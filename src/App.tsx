@@ -10,15 +10,22 @@ import {
   EffectEngine,
   Gesture,
   GeometricGestureRecognizer,
-  GestureEventBus,
-  HudRenderer,
   type Landmark,
   type TrackedHand,
 } from './shared'
 import GestureGuide from './ui/GestureGuide'
 import Onboarding from './ui/Onboarding'
+import StatusPill from './ui/StatusPill'
+import ControlBar from './ui/ControlBar'
+import './ui/shell.css'
 
 type Status = 'loading' | 'ready' | 'error'
+
+interface HudState {
+  tracking: boolean
+  gesture: Gesture
+  effectId: string
+}
 
 /** Project normalized MediaPipe landmarks into mirrored canvas pixel space. */
 function projectHands(hands: TrackedHand[], width: number, height: number): TrackedHand[] {
@@ -34,11 +41,7 @@ function projectHands(hands: TrackedHand[], width: number, height: number): Trac
 
 /** Pick the best-supported WebM MIME type for MediaRecorder. */
 function pickMimeType(): string {
-  const candidates = [
-    'video/webm;codecs=vp9',
-    'video/webm;codecs=vp8',
-    'video/webm',
-  ]
+  const candidates = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm']
   for (const type of candidates) {
     if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(type)) {
       return type
@@ -54,15 +57,11 @@ export default function App() {
   const trackerRef = useRef<HandTracker | null>(null)
   const engineRef = useRef(new EffectEngine())
   const recognizerRef = useRef(new GeometricGestureRecognizer())
-  const busRef = useRef(new GestureEventBus())
-  const hudRef = useRef(new HudRenderer())
 
   const streamRef = useRef<MediaStream | null>(null)
   const rafRef = useRef<number | null>(null)
   const lastTsRef = useRef(0)
   const lastGestureRef = useRef<Gesture>(Gesture.NONE)
-  const lastEventRef = useRef<Gesture>(Gesture.NONE)
-  const fpsRef = useRef(0)
   const hudTickRef = useRef(0)
 
   const recorderRef = useRef<MediaRecorder | null>(null)
@@ -70,7 +69,11 @@ export default function App() {
 
   const [status, setStatus] = useState<Status>('loading')
   const [errorMsg, setErrorMsg] = useState('')
-  const [hudLines, setHudLines] = useState<string[]>([])
+  const [hud, setHud] = useState<HudState>({
+    tracking: false,
+    gesture: Gesture.NONE,
+    effectId: 'neon-skeleton',
+  })
   const [recording, setRecording] = useState(false)
   const [initToken, setInitToken] = useState(0)
   const [guideOpen, setGuideOpen] = useState(false)
@@ -106,11 +109,6 @@ export default function App() {
 
   useEffect(() => {
     let cancelled = false
-
-    const bus = busRef.current
-    const unsubscribe = bus.on((g) => {
-      lastEventRef.current = g
-    })
 
     async function init() {
       const video = videoRef.current
@@ -158,7 +156,6 @@ export default function App() {
 
       const dt = Math.max(1, ts - lastTsRef.current)
       lastTsRef.current = ts
-      fpsRef.current = fpsRef.current * 0.9 + (1000 / dt) * 0.1
 
       const size = { width: canvas.width, height: canvas.height }
 
@@ -169,7 +166,6 @@ export default function App() {
       const gesture = recognizerRef.current.recognize(hands[0])
       if (gesture !== lastGestureRef.current) {
         lastGestureRef.current = gesture
-        busRef.current.emit(gesture)
         setLiveGesture(gesture)
       }
 
@@ -178,21 +174,15 @@ export default function App() {
       const commands = engineRef.current.step(hands, gesture, size, dt)
       renderCommands(ctx, commands)
 
-      // Throttle HUD state updates to ~10fps.
+      // Throttle status updates to ~10 fps.
       hudTickRef.current += dt
       if (hudTickRef.current >= 100) {
         hudTickRef.current = 0
-        setHudLines(
-          hudRef.current.render({
-            tracking: hands.length > 0,
-            handCount: hands.length,
-            gesture,
-            activeEffectId: engineRef.current.activeEffectId,
-            inferenceMs: result.inferenceMs,
-            fps: fpsRef.current,
-            lastEvent: lastEventRef.current,
-          }),
-        )
+        setHud({
+          tracking: hands.length > 0,
+          gesture,
+          effectId: engineRef.current.activeEffectId,
+        })
       }
 
       rafRef.current = requestAnimationFrame(loop)
@@ -202,7 +192,6 @@ export default function App() {
 
     return () => {
       cancelled = true
-      unsubscribe()
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current)
       if (recorderRef.current?.state === 'recording') recorderRef.current.stop()
       trackerRef.current?.close()
@@ -248,19 +237,19 @@ export default function App() {
       <video ref={videoRef} className="source-video" playsInline muted />
       <canvas ref={canvasRef} className="stage" />
 
-      <div className="fab-row">
-        <button className="fab-btn" onClick={() => setOnboardingOpen(true)}>
-          🎓 Tutorial
-        </button>
-        <button className="fab-btn" onClick={() => setGuideOpen(true)}>
-          📖 Guide
-        </button>
-      </div>
+      {status === 'ready' && (
+        <StatusPill
+          tracking={hud.tracking}
+          gesture={hud.gesture}
+          effectId={hud.effectId}
+          recording={recording}
+        />
+      )}
 
       {status === 'loading' && (
         <div className="overlay center">
           <div className="spinner" />
-          <p>Initializing camera &amp; hand-tracking model…</p>
+          <p>Starting camera &amp; hand tracking…</p>
           <p className="hint">First load downloads the model (~20&nbsp;MB); later loads are instant.</p>
         </div>
       )}
@@ -270,30 +259,19 @@ export default function App() {
           <h2>Can&apos;t start the camera</h2>
           <p className="error">{errorMsg}</p>
           <p className="hint">Allow camera access and make sure you&apos;re on HTTPS, then retry.</p>
-          <button onClick={retry}>Retry</button>
+          <button className="btn-primary" onClick={retry}>
+            Retry
+          </button>
         </div>
       )}
 
       {status === 'ready' && (
-        <>
-          <pre className="hud">{hudLines.join('\n')}</pre>
-          <div className="controls">
-            {recording ? (
-              <button className="rec active" onClick={stopRecording}>
-                ■ Stop Recording
-              </button>
-            ) : (
-              <button className="rec" onClick={startRecording}>
-                ● Start Recording
-              </button>
-            )}
-          </div>
-          <div className="legend">
-            <span>✋ / ✊ / ✌️ → Neon skeleton</span>
-            <span>👉 Pointing → Laser</span>
-            <span>🤏 Pinch → Sparks</span>
-          </div>
-        </>
+        <ControlBar
+          recording={recording}
+          onToggleRecord={recording ? stopRecording : startRecording}
+          onOpenTutorial={() => setOnboardingOpen(true)}
+          onOpenGuide={() => setGuideOpen(true)}
+        />
       )}
 
       <GestureGuide
