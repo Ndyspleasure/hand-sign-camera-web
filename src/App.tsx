@@ -66,6 +66,8 @@ export default function App() {
 
   const recorderRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<Blob[]>([])
+  const recordTimerRef = useRef<number | null>(null)
+  const recordStartRef = useRef(0)
 
   const [status, setStatus] = useState<Status>('loading')
   const [errorMsg, setErrorMsg] = useState('')
@@ -75,6 +77,7 @@ export default function App() {
     effectId: 'neon-skeleton',
   })
   const [recording, setRecording] = useState(false)
+  const [recordSeconds, setRecordSeconds] = useState(0)
   const [initToken, setInitToken] = useState(0)
   const [guideOpen, setGuideOpen] = useState(false)
   const [onboardingOpen, setOnboardingOpen] = useState(false)
@@ -224,13 +227,31 @@ export default function App() {
     recorder.start()
     recorderRef.current = recorder
     setRecording(true)
+    setRecordSeconds(0)
+    recordStartRef.current = performance.now()
+    recordTimerRef.current = window.setInterval(() => {
+      setRecordSeconds(Math.floor((performance.now() - recordStartRef.current) / 1000))
+    }, 500)
   }, [])
 
   const stopRecording = useCallback(() => {
     recorderRef.current?.stop()
     recorderRef.current = null
+    if (recordTimerRef.current !== null) {
+      clearInterval(recordTimerRef.current)
+      recordTimerRef.current = null
+    }
     setRecording(false)
+    setRecordSeconds(0)
   }, [])
+
+  // Clear the recording timer if the component unmounts mid-recording.
+  useEffect(
+    () => () => {
+      if (recordTimerRef.current !== null) clearInterval(recordTimerRef.current)
+    },
+    [],
+  )
 
   return (
     <div className="app">
@@ -243,7 +264,12 @@ export default function App() {
           gesture={hud.gesture}
           effectId={hud.effectId}
           recording={recording}
+          recordingSeconds={recordSeconds}
         />
+      )}
+
+      {status === 'ready' && !hud.tracking && !onboardingOpen && !guideOpen && (
+        <div className="hand-hint">✋ Show your hand to the camera</div>
       )}
 
       {status === 'loading' && (
