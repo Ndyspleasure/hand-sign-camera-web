@@ -10,12 +10,23 @@ function dist(a: Landmark, b: Landmark): number {
 
 /**
  * A finger is "extended" when its tip is farther from the wrist than its
- * reference joint. This is orientation-independent and good enough for an
- * MVP finger-curl heuristic.
+ * reference joint. This is orientation-independent and good enough for the
+ * four non-thumb fingers.
  */
 function isExtended(lm: Landmark[], tip: number, ref: number): boolean {
   const wrist = lm[HandLandmark.WRIST]
   return dist(lm[tip], wrist) > dist(lm[ref], wrist)
+}
+
+/**
+ * The thumb needs its own test: the wrist-distance heuristic misreads a tucked
+ * thumb (as in a fist) as "extended", which broke FIST detection. Instead treat
+ * the thumb as extended only when its tip sticks out away from the index
+ * knuckle — small when curled across the palm, large when it points out
+ * (thumbs-up / open palm).
+ */
+function isThumbExtended(lm: Landmark[], handScale: number): boolean {
+  return dist(lm[HandLandmark.THUMB_TIP], lm[HandLandmark.INDEX_MCP]) > handScale * 0.6
 }
 
 /**
@@ -27,20 +38,25 @@ export class GeometricGestureRecognizer {
     if (!hand || hand.landmarks.length < 21) return Gesture.NONE
     const lm = hand.landmarks
 
-    const thumb = isExtended(lm, FINGERS.thumb.tip, FINGERS.thumb.ref)
+    // Hand scale normalizes the thumb and pinch thresholds.
+    const handScale = dist(lm[HandLandmark.WRIST], lm[HandLandmark.MIDDLE_MCP]) || 1
+
+    const thumb = isThumbExtended(lm, handScale)
     const index = isExtended(lm, FINGERS.index.tip, FINGERS.index.ref)
     const middle = isExtended(lm, FINGERS.middle.tip, FINGERS.middle.ref)
     const ring = isExtended(lm, FINGERS.ring.tip, FINGERS.ring.ref)
     const pinky = isExtended(lm, FINGERS.pinky.tip, FINGERS.pinky.ref)
 
-    // Hand scale used to normalize the pinch threshold.
-    const handScale = dist(lm[HandLandmark.WRIST], lm[HandLandmark.MIDDLE_MCP]) || 1
     const pinchDist = dist(lm[HandLandmark.THUMB_TIP], lm[HandLandmark.INDEX_TIP])
     const isPinching = pinchDist < handScale * 0.4
 
-    // Pinch-based gestures take priority.
+    // Pinch-based gestures. A closed fist also brings the thumb and index tips
+    // together, so only treat it as OK/PINCH when the pose is clearly a pinch
+    // (index — and for OK the other fingers — extended). Otherwise fall through
+    // so a fist is recognized as FIST instead of firing the spark effect.
     if (isPinching) {
-      return middle && ring && pinky ? Gesture.OK : Gesture.PINCH
+      if (middle && ring && pinky) return Gesture.OK
+      if (index) return Gesture.PINCH
     }
 
     if (index && middle && ring && pinky && thumb) return Gesture.OPEN_PALM

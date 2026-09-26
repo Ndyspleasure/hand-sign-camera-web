@@ -16,6 +16,7 @@ import {
   type TrackedHand,
 } from './shared'
 import GestureGuide from './ui/GestureGuide'
+import Onboarding from './ui/Onboarding'
 
 type Status = 'loading' | 'ready' | 'error'
 
@@ -73,12 +74,35 @@ export default function App() {
   const [recording, setRecording] = useState(false)
   const [initToken, setInitToken] = useState(0)
   const [guideOpen, setGuideOpen] = useState(false)
+  const [onboardingOpen, setOnboardingOpen] = useState(false)
+  const [liveGesture, setLiveGesture] = useState<Gesture>(Gesture.NONE)
 
   const retry = useCallback(() => {
     setStatus('loading')
     setErrorMsg('')
     setInitToken((n) => n + 1)
   }, [])
+
+  const closeOnboarding = useCallback(() => {
+    setOnboardingOpen(false)
+    try {
+      localStorage.setItem('hsc.onboarded', '1')
+    } catch {
+      // ignore blocked/unavailable storage (private mode)
+    }
+  }, [])
+
+  // Auto-open the tutorial on the first successful start.
+  useEffect(() => {
+    if (status !== 'ready') return
+    let done = false
+    try {
+      done = localStorage.getItem('hsc.onboarded') === '1'
+    } catch {
+      done = false
+    }
+    if (!done) setOnboardingOpen(true)
+  }, [status])
 
   useEffect(() => {
     let cancelled = false
@@ -146,6 +170,7 @@ export default function App() {
       if (gesture !== lastGestureRef.current) {
         lastGestureRef.current = gesture
         busRef.current.emit(gesture)
+        setLiveGesture(gesture)
       }
 
       // Draw mirrored camera frame, then effect overlay.
@@ -223,9 +248,14 @@ export default function App() {
       <video ref={videoRef} className="source-video" playsInline muted />
       <canvas ref={canvasRef} className="stage" />
 
-      <button className="guide-fab" onClick={() => setGuideOpen(true)}>
-        📖 Guide
-      </button>
+      <div className="fab-row">
+        <button className="fab-btn" onClick={() => setOnboardingOpen(true)}>
+          🎓 Tutorial
+        </button>
+        <button className="fab-btn" onClick={() => setGuideOpen(true)}>
+          📖 Guide
+        </button>
+      </div>
 
       {status === 'loading' && (
         <div className="overlay center">
@@ -270,6 +300,14 @@ export default function App() {
         open={guideOpen}
         onClose={() => setGuideOpen(false)}
         onTryGesture={() => setGuideOpen(false)}
+      />
+
+      <Onboarding
+        open={onboardingOpen}
+        cameraReady={status === 'ready'}
+        liveGesture={liveGesture}
+        onClose={closeOnboarding}
+        onFinish={closeOnboarding}
       />
     </div>
   )

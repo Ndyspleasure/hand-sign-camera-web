@@ -19,7 +19,7 @@ export interface GestureGuideProps {
 export default function GestureGuide({ open, onClose, onTryGesture }: GestureGuideProps) {
   const [selected, setSelected] = useState<GuideGesture>(GUIDE_ORDER[0])
   const info = GESTURES[selected]
-  const animatedPose = useGestureAnimation(info.pose, { play: open })
+  const anim = useGestureAnimation(info.pose, open ? 'demonstrating' : 'waiting')
 
   if (!open) return null
 
@@ -35,7 +35,7 @@ export default function GestureGuide({ open, onClose, onTryGesture }: GestureGui
 
         <div className="gg-body">
           <div className="gg-stage">
-            <HandSvg pose={animatedPose} rotate={info.pose.rotate} size={240} />
+            <HandSvg pose={anim.pose} rotate={anim.rotate} detected={anim.detected} size={240} />
           </div>
 
           <div className="gg-info">
