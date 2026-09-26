@@ -5,7 +5,10 @@ import {
 } from '@mediapipe/tasks-vision'
 import type { Handedness, HandTrackingResult, Landmark, TrackedHand } from '../shared'
 
-const WASM_BASE = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.29/wasm'
+// Served from the app's own origin (see scripts/prepare-mediapipe.mjs). This
+// keeps the WASM runtime in lock-step with the bundled @mediapipe/tasks-vision
+// version and avoids depending on an external CDN at runtime.
+const WASM_BASE = '/mediapipe/wasm'
 const MODEL_URL =
   'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task'
 
@@ -17,12 +20,32 @@ export class HandTracker {
   private landmarker: HandLandmarker | null = null
 
   async initialize(): Promise<void> {
-    const vision = await FilesetResolver.forVisionTasks(WASM_BASE)
+    let vision: Awaited<ReturnType<typeof FilesetResolver.forVisionTasks>>
+    try {
+      vision = await FilesetResolver.forVisionTasks(WASM_BASE)
+    } catch (err) {
+      throw new Error(
+        `Could not load the hand-tracking runtime (WASM) from ${WASM_BASE}. ` +
+          `${err instanceof Error ? err.message : String(err)}`,
+      )
+    }
+
+    // Prefer the GPU delegate; fall back to CPU on devices without WebGL.
     try {
       this.landmarker = await this.create(vision, 'GPU')
-    } catch {
-      // Fall back to CPU delegate on devices without WebGL/GPU support.
-      this.landmarker = await this.create(vision, 'CPU')
+      return
+    } catch (gpuErr) {
+      try {
+        this.landmarker = await this.create(vision, 'CPU')
+      } catch (cpuErr) {
+        const detail = cpuErr instanceof Error ? cpuErr.message : String(cpuErr)
+        const gpuDetail = gpuErr instanceof Error ? gpuErr.message : String(gpuErr)
+        throw new Error(
+          `Could not create the hand-tracking model. ` +
+            `GPU: ${gpuDetail}. CPU: ${detail}. ` +
+            `The model may be blocked by the network or failed to download.`,
+        )
+      }
     }
   }
 

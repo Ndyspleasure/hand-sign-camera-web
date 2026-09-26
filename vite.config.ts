@@ -11,21 +11,27 @@ export default defineConfig({
       strategies: 'generateSW',  // ← CHANGED: Let vite-plugin-pwa generate SW automatically
       workbox: {
         // Cache everything, forever (app manages cache manually for model updates)
+        // The 11 MB WASM binaries exceed the default precache size limit, so
+        // they are cached at runtime on first use instead of being precached.
         runtimeCaching: [
           {
-            urlPattern: /^https:\/\/cdn\.jsdelivr\.net\/npm\/@mediapipe/,
+            // Same-origin MediaPipe WASM runtime (public/mediapipe/wasm).
+            urlPattern: /\/mediapipe\/wasm\//,
             handler: 'CacheFirst',
             options: {
               cacheName: 'mediapipe-wasm',
-              expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 * 365 } // 1 year
+              expiration: { maxEntries: 20, maxAgeSeconds: 60 * 60 * 24 * 365 }, // 1 year
+              cacheableResponse: { statuses: [0, 200] }
             }
           },
           {
+            // Hand-landmarker model (.task) from Google's model CDN.
             urlPattern: /.*\.task$/,
             handler: 'CacheFirst',
             options: {
               cacheName: 'models',
-              expiration: { maxEntries: 10 }
+              expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 },
+              cacheableResponse: { statuses: [0, 200] }
             }
           }
         ],
