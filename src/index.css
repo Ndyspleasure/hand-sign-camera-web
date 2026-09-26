@@ -156,6 +156,23 @@ button:hover {
   }
 }
 
+.guide-fab {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  z-index: 60;
+  padding: 9px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 229, 255, 0.4);
+  background: rgba(0, 20, 26, 0.72);
+  color: #e8fbff;
+  font-size: 0.85rem;
+  backdrop-filter: blur(4px);
+}
+.guide-fab:hover {
+  background: rgba(0, 229, 255, 0.2);
+}
+
 .legend {
   position: fixed;
   bottom: 12px;
