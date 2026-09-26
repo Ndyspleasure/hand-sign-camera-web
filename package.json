@@ -3,8 +3,9 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
+    "prepare:assets": "node scripts/prepare-mediapipe.mjs",
+    "dev": "node scripts/prepare-mediapipe.mjs && vite",
+    "build": "node scripts/prepare-mediapipe.mjs && tsc && vite build",
     "preview": "vite preview",
     "lint": "eslint src --ext .ts,.tsx"
   },
