@@ -1,0 +1,146 @@
+.ob-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  /* Kept semi-transparent so the live camera (and the user's hand) stays
+     visible behind the tutorial panel while they perform the gesture. */
+  background: rgba(4, 10, 14, 0.55);
+  backdrop-filter: blur(1px);
+  --hand-accent: #00e5ff;
+  --hand-dim: rgba(180, 220, 230, 0.26);
+  --hand-success: #34d399;
+}
+
+.ob-panel {
+  position: relative;
+  width: min(420px, 100%);
+  background: #0d1418;
+  border: 1px solid rgba(0, 229, 255, 0.22);
+  border-radius: 20px;
+  padding: 28px 24px 22px;
+  text-align: center;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+}
+
+.ob-skip {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  border: none;
+  background: none;
+  color: #6f9aa6;
+  font-size: 0.82rem;
+  cursor: pointer;
+  padding: 4px 6px;
+}
+.ob-skip:hover {
+  color: #cdeff6;
+}
+
+.ob-step h2 {
+  margin: 6px 0 8px;
+  font-size: 1.4rem;
+}
+
+.ob-kicker {
+  margin: 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #6f9aa6;
+}
+
+.ob-stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 10px auto 14px;
+  min-height: 220px;
+  border-radius: 16px;
+  background: radial-gradient(circle at 50% 42%, rgba(0, 229, 255, 0.1), transparent 70%);
+  transition: background 0.3s ease;
+}
+.ob-stage.is-success {
+  background: radial-gradient(circle at 50% 42%, rgba(52, 211, 153, 0.22), transparent 72%);
+  animation: ob-pop 0.5s ease;
+}
+
+@keyframes ob-pop {
+  0% { transform: scale(0.9); }
+  55% { transform: scale(1.06); }
+  100% { transform: scale(1); }
+}
+
+.ob-name {
+  margin: 0 0 4px;
+  font-size: 1.25rem;
+}
+
+.ob-desc {
+  color: #a9c7d0;
+  line-height: 1.55;
+  margin: 8px 0 16px;
+}
+
+.ob-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 0.9rem;
+  color: #9fb9c1;
+}
+.ob-status.is-ok {
+  color: #34d399;
+  font-weight: 600;
+}
+
+.ob-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #00e5ff;
+  animation: ob-blink 1s ease-in-out infinite;
+}
+@keyframes ob-blink {
+  50% { opacity: 0.2; }
+}
+
+.ob-primary {
+  margin-top: 8px;
+  border: none;
+  background: linear-gradient(135deg, #00e5ff, #22a7c4);
+  color: #04222b;
+  font-weight: 600;
+  padding: 12px 26px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 1rem;
+}
+.ob-primary:hover {
+  filter: brightness(1.08);
+}
+
+.ob-progress {
+  display: flex;
+  gap: 7px;
+  justify-content: center;
+  margin-top: 20px;
+}
+.ob-tick {
+  width: 22px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.14);
+  transition: background 0.25s ease;
+}
+.ob-tick.current {
+  background: #00e5ff;
+}
+.ob-tick.done {
+  background: #34d399;
+}
