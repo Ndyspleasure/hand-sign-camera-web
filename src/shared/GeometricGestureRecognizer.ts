@@ -50,9 +50,13 @@ export class GeometricGestureRecognizer {
     const pinchDist = dist(lm[HandLandmark.THUMB_TIP], lm[HandLandmark.INDEX_TIP])
     const isPinching = pinchDist < handScale * 0.4
 
-    // Pinch-based gestures take priority.
+    // Pinch-based gestures. A closed fist also brings the thumb and index tips
+    // together, so only treat it as OK/PINCH when the pose is clearly a pinch
+    // (index — and for OK the other fingers — extended). Otherwise fall through
+    // so a fist is recognized as FIST instead of firing the spark effect.
     if (isPinching) {
-      return middle && ring && pinky ? Gesture.OK : Gesture.PINCH
+      if (middle && ring && pinky) return Gesture.OK
+      if (index) return Gesture.PINCH
     }
 
     if (index && middle && ring && pinky && thumb) return Gesture.OPEN_PALM
