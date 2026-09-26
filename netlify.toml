@@ -1,0 +1,28 @@
+[build]
+command = "npm run build"
+publish = "dist"
+
+[functions]
+node_bundler = "esbuild"
+
+[[redirects]]
+from = "/*"
+to = "/index.html"
+status = 200
+
+[[headers]]
+for = "/*"
+[headers.values]
+X-Frame-Options = "DENY"
+X-Content-Type-Options = "nosniff"
+Referrer-Policy = "strict-origin-when-cross-origin"
+
+[[headers]]
+for = "/index.html"
+[headers.values]
+Cache-Control = "max-age=0, must-revalidate"
+
+[[headers]]
+for = "/dist/*"
+[headers.values]
+Cache-Control = "max-age=31536000, immutable"
