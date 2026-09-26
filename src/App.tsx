@@ -15,6 +15,7 @@ import {
   type Landmark,
   type TrackedHand,
 } from './shared'
+import GestureGuide from './ui/GestureGuide'
 
 type Status = 'loading' | 'ready' | 'error'
 
@@ -71,6 +72,7 @@ export default function App() {
   const [hudLines, setHudLines] = useState<string[]>([])
   const [recording, setRecording] = useState(false)
   const [initToken, setInitToken] = useState(0)
+  const [guideOpen, setGuideOpen] = useState(false)
 
   const retry = useCallback(() => {
     setStatus('loading')
@@ -221,6 +223,10 @@ export default function App() {
       <video ref={videoRef} className="source-video" playsInline muted />
       <canvas ref={canvasRef} className="stage" />
 
+      <button className="guide-fab" onClick={() => setGuideOpen(true)}>
+        📖 Guide
+      </button>
+
       {status === 'loading' && (
         <div className="overlay center">
           <div className="spinner" />
@@ -259,6 +265,12 @@ export default function App() {
           </div>
         </>
       )}
+
+      <GestureGuide
+        open={guideOpen}
+        onClose={() => setGuideOpen(false)}
+        onTryGesture={() => setGuideOpen(false)}
+      />
     </div>
   )
 }
