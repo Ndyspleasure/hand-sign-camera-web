@@ -42,7 +42,7 @@ function head(opts: SiteOptions, m: Meta): string {
     m.noindex ? '' : `<link rel="canonical" href="${url}">`,
     `<meta name="theme-color" content="${SITE.themeColor}">`,
     `<meta name="color-scheme" content="dark">`,
-    `<meta name="author" content="${SITE.brand}">`,
+    `<meta name="author" content="${SITE.brandLegal}">`,
     `<link rel="icon" href="/favicon.ico" sizes="32x32">`,
     `<link rel="icon" href="/favicon.svg" type="image/svg+xml">`,
     `<link rel="apple-touch-icon" href="/apple-touch-icon.png">`,
@@ -136,7 +136,7 @@ function Footer() {
           </a>
           <p>
             A free, private hand gesture camera that runs in your browser. Made by{' '}
-            <a href={SITE.brandUrl}>{SITE.brand}</a>.
+            <a href={SITE.brandUrl}>{SITE.brandLegal}</a>.
           </p>
         </div>
         <div>
@@ -165,14 +165,17 @@ function Footer() {
               <a href={PATHS.privacy}>Privacy</a>
             </li>
             <li>
-              <a href={SITE.brandUrl}>vanillate.id</a>
+              <a href={SITE.productUrl}>On vanillate.id</a>
+            </li>
+            <li>
+              <a href={SITE.brandUrl}>Vanillate Studio</a>
             </li>
           </ul>
         </div>
       </div>
       <div className="wrap">
         <p>
-          © {new Date().getFullYear()} {SITE.brand}. Hand tracking runs on your device.
+          © {new Date().getFullYear()} {SITE.brandLegal}. Hand tracking runs on your device.
         </p>
       </div>
     </footer>
@@ -234,7 +237,15 @@ function breadcrumbLd(opts: SiteOptions, items: { name: string; path: string }[]
 }
 
 function organizationLd() {
-  return { '@type': 'Organization', '@id': `${SITE.brandUrl}/#organization`, name: SITE.brand, url: SITE.brandUrl }
+  return {
+    '@type': 'Organization',
+    '@id': `${SITE.brandUrl}/#organization`,
+    name: SITE.brandLegal,
+    alternateName: SITE.brand,
+    url: SITE.brandUrl,
+    logo: `${SITE.brandUrl}/apple-touch-icon.png`,
+    sameAs: SITE.sameAs,
+  }
 }
 
 // ---- Pages -------------------------------------------------------------
@@ -424,10 +435,11 @@ function homePage(opts: SiteOptions): string {
 
       <section aria-labelledby="about">
         <div className="wrap center">
-          <h2 id="about">Made by Vanillate</h2>
+          <h2 id="about">Made by Vanillate Studio</h2>
           <p style={{ margin: '0 auto 20px' }}>
-            Hand Sign Camera is built by <a href={SITE.brandUrl}>Vanillate</a>. Try it now: it takes a few seconds to
-            start.
+            Hand Sign Camera is built by <a href={SITE.brandUrl}>Vanillate Studio</a>, an Indonesian studio making
+            digital products for communities and social experiences. See it in the{' '}
+            <a href={SITE.productUrl}>Vanillate product catalog</a>, or try it now: it takes a few seconds to start.
           </p>
           <a className="btn btn-primary" href={PATHS.camera}>
             Open the camera
@@ -741,8 +753,8 @@ function privacyPage(opts: SiteOptions): string {
         <p>There is no sign-up, and the app includes no advertising or analytics scripts.</p>
         <h2>Questions</h2>
         <p>
-          Hand Sign Camera is made by <a href={SITE.brandUrl}>Vanillate</a>. For questions, contact us through{' '}
-          <a href={SITE.brandUrl}>vanillate.id</a>.
+          Hand Sign Camera is made by <a href={SITE.brandUrl}>Vanillate Studio</a>. For questions, use the{' '}
+          <a href={`${SITE.brandUrl}/support`}>Vanillate support center</a>.
         </p>
         <p>
           <a className="btn btn-primary" href={PATHS.camera}>
@@ -813,7 +825,7 @@ function llms(opts: SiteOptions): string {
   const lines = [
     `# ${SITE.name}`,
     '',
-    `> A free web app by ${SITE.brand} that recognizes 16 hand gestures through the camera in real time and turns each into its own visual effect. It runs entirely in the browser: video never leaves the device.`,
+    `> A free web app by ${SITE.brandLegal} that recognizes 16 hand gestures through the camera in real time and turns each into its own visual effect. It runs entirely in the browser: video never leaves the device.`,
     '',
     '## Pages',
     '',

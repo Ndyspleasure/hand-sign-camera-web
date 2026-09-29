@@ -263,7 +263,7 @@ export interface Faq {
 export const HOME_FAQ: Faq[] = [
   {
     q: 'What is Hand Sign Camera?',
-    a: 'Hand Sign Camera is a free web app by Vanillate that recognizes 16 hand gestures through your camera in real time and turns each one into its own visual effect.',
+    a: 'Hand Sign Camera is a free web app by Vanillate Studio that recognizes 16 hand gestures through your camera in real time and turns each one into its own visual effect.',
   },
   {
     q: 'Do I need to install anything?',

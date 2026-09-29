@@ -4,7 +4,11 @@ import { GESTURE_SEO } from './content'
 export const SITE = {
   name: 'Hand Sign Camera',
   brand: 'Vanillate',
+  brandLegal: 'Vanillate Studio',
   brandUrl: 'https://vanillate.id',
+  /** This app's page in the Vanillate Studio product catalog. */
+  productUrl: 'https://vanillate.id/products/hand-sign-camera',
+  sameAs: ['https://discord.gg/A7n88d6uRW'],
   locale: 'en_US',
   lang: 'en',
   themeColor: '#071014',
