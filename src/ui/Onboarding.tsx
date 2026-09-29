@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import HandSvg from '../hand-svg/HandSvg'
+import GestureFigure from '../hand-svg/GestureFigure'
 import { useGestureAnimation } from '../gestures/animation'
 import { CORE_GESTURES, GESTURES, type GuideGesture } from '../gestures/registry'
 import { Gesture } from '../shared/Gesture'
@@ -8,8 +8,8 @@ import './onboarding.css'
 export interface OnboardingProps {
   open: boolean
   cameraReady: boolean
-  /** Latest gesture detected by the live tracker. */
-  liveGesture: Gesture
+  /** Gestures currently detected live (each hand, plus any two-hand gesture). */
+  liveGestures: Gesture[]
   /** Skip / dismiss. */
   onClose: () => void
   /** Completed the whole flow. */
@@ -46,14 +46,16 @@ function GestureStep({
       <h2>Make this gesture</h2>
 
       <div className={`ob-stage${anim.detected ? ' is-success' : ''}`}>
-        <HandSvg pose={anim.pose} rotate={anim.rotate} detected={anim.detected} size={220} />
+        <GestureFigure gesture={info.pose} pose={anim.pose} height={210} detected={anim.detected} />
       </div>
 
-      <h3 className="ob-name">{info.name}</h3>
+      <h3 className="ob-name">
+        {info.emoji} {info.name}
+      </h3>
       <p className="ob-desc">{info.description}</p>
 
       {phase === 'success' ? (
-        <p className="ob-status is-ok">✓ Gesture detected!</p>
+        <p className="ob-status is-ok">✓ Gesture detected! · {info.effectLabel}</p>
       ) : cameraReady ? (
         <p className="ob-status">
           <span className="ob-dot" /> Show your hand to the camera…
@@ -73,7 +75,7 @@ function GestureStep({
 export default function Onboarding({
   open,
   cameraReady,
-  liveGesture,
+  liveGestures,
   onClose,
   onFinish,
 }: OnboardingProps) {
@@ -86,6 +88,9 @@ export default function Onboarding({
   const isIntro = step === 0
   const isFinish = step === total + 1
   const gesture = !isIntro && !isFinish ? CORE_GESTURES[step - 1] : null
+  // A boolean (not the array) drives the effect, so frequent status updates
+  // don't reset the hold timer.
+  const matching = gesture !== null && liveGestures.includes(gesture)
 
   // Restart when (re)opened.
   useEffect(() => {
@@ -102,25 +107,18 @@ export default function Onboarding({
 
   // Live detection on gesture steps: hold the gesture for HOLD_MS to pass.
   useEffect(() => {
-    if (!open || !gesture || phase !== 'demo' || !cameraReady) return
-    if (liveGesture === gesture) {
-      if (holdTimer.current === null) {
-        holdTimer.current = window.setTimeout(() => {
-          holdTimer.current = null
-          setPhase('success')
-        }, HOLD_MS)
-      }
-    } else if (holdTimer.current !== null) {
-      clearTimeout(holdTimer.current)
+    if (!open || !gesture || phase !== 'demo' || !cameraReady || !matching) return
+    holdTimer.current = window.setTimeout(() => {
       holdTimer.current = null
-    }
+      setPhase('success')
+    }, HOLD_MS)
     return () => {
       if (holdTimer.current !== null) {
         clearTimeout(holdTimer.current)
         holdTimer.current = null
       }
     }
-  }, [open, gesture, phase, cameraReady, liveGesture])
+  }, [open, gesture, phase, cameraReady, matching])
 
   // After success, advance to the next step.
   useEffect(() => {
@@ -139,6 +137,9 @@ export default function Onboarding({
 
   if (!open) return null
 
+  const open_ = GESTURES[Gesture.OPEN_PALM]
+  const heart = GESTURES[Gesture.HEART]
+
   return (
     <div className="ob-overlay" role="dialog" aria-modal="true" aria-label="Tutorial">
       <div className="ob-panel">
@@ -149,12 +150,13 @@ export default function Onboarding({
         {isIntro && (
           <div className="ob-step">
             <div className="ob-stage">
-              <HandSvg pose={GESTURES[CORE_GESTURES[0]].pose.pose} size={200} />
+              <GestureFigure gesture={open_.pose} pose={open_.pose.pose} height={200} />
             </div>
             <h2>Welcome 👋</h2>
             <p className="ob-desc">
-              This app reads your hand with the camera and turns gestures into live visual
-              effects. Let&apos;s learn a few gestures — you&apos;ll try each one on camera.
+              This app reads your hands with the camera and turns gestures into live visual
+              effects — every gesture has its own. Let&apos;s learn a few; you&apos;ll try each one
+              on camera.
             </p>
             <button className="ob-primary" onClick={() => setStep(1)}>
               Start
@@ -175,12 +177,13 @@ export default function Onboarding({
         {isFinish && (
           <div className="ob-step">
             <div className="ob-stage is-success">
-              <HandSvg pose={GESTURES[Gesture.OPEN_PALM].pose.pose} detected size={200} />
+              <GestureFigure gesture={heart.pose} pose={heart.pose.pose} height={180} detected />
             </div>
             <h2>You&apos;re ready! 🎉</h2>
             <p className="ob-desc">
-              Make gestures anytime to trigger effects, and hit record to save a clip. Open the
-              Guide to see all gestures.
+              There&apos;s more to discover: 🤙 🤟 👋 and two-hand gestures like 🫶 Heart and 🙌
+              Double Palm. Open the Guide to see every gesture and its effect, and hit record to
+              save a clip.
             </p>
             <button className="ob-primary" onClick={onFinish}>
               Enter camera

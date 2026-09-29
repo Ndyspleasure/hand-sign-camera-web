@@ -9,41 +9,104 @@ export function argbToRgba(argb: ARGB): string {
   return `rgba(${r}, ${g}, ${b}, ${a})`
 }
 
-/** Render a list of draw commands to a Canvas 2D context. */
-export function renderCommands(
-  ctx: CanvasRenderingContext2D,
-  commands: DrawCommand[],
-): void {
-  for (const c of commands) {
-    ctx.save()
-    ctx.lineCap = 'round'
-    if (c.glow) {
-      ctx.shadowBlur = c.glow
-      ctx.shadowColor = argbToRgba(c.color)
-    }
+const FONTS = {
+  mono: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+  sans: 'ui-sans-serif, system-ui, sans-serif',
+} as const
 
-    if (c.kind === 'line') {
-      ctx.strokeStyle = argbToRgba(c.color)
-      ctx.lineWidth = c.width
-      ctx.beginPath()
-      ctx.moveTo(c.x1, c.y1)
-      ctx.lineTo(c.x2, c.y2)
-      ctx.stroke()
-    } else {
-      ctx.beginPath()
-      ctx.arc(c.x, c.y, c.radius, 0, Math.PI * 2)
-      if (c.fill) {
-        ctx.fillStyle = argbToRgba(c.color)
-        ctx.fill()
-      } else {
-        ctx.strokeStyle = argbToRgba(c.color)
-        ctx.lineWidth = 2
+/**
+ * Render draw commands to a Canvas 2D context.
+ *
+ * Avoids a save()/restore() per command (hundreds of particles per frame) by
+ * only touching context state when it changes, and always resets shadow and
+ * blend state at the end — a leftover shadowBlur would make the next frame's
+ * video drawImage extremely slow.
+ */
+export function renderCommands(ctx: CanvasRenderingContext2D, commands: DrawCommand[]): void {
+  let blend: GlobalCompositeOperation = 'source-over'
+  let glow = 0
+  let font = ''
+
+  ctx.globalCompositeOperation = blend
+  ctx.shadowBlur = 0
+  ctx.lineCap = 'round'
+  ctx.lineJoin = 'round'
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+
+  for (const c of commands) {
+    const nextBlend: GlobalCompositeOperation = c.blend === 'add' ? 'lighter' : 'source-over'
+    if (nextBlend !== blend) {
+      ctx.globalCompositeOperation = nextBlend
+      blend = nextBlend
+    }
+    const color = argbToRgba(c.color)
+    const nextGlow = c.glow ?? 0
+    if (nextGlow !== glow) {
+      ctx.shadowBlur = nextGlow
+      glow = nextGlow
+    }
+    if (glow) ctx.shadowColor = color
+
+    switch (c.kind) {
+      case 'line':
+        ctx.strokeStyle = color
+        ctx.lineWidth = c.width
+        ctx.beginPath()
+        ctx.moveTo(c.x1, c.y1)
+        ctx.lineTo(c.x2, c.y2)
         ctx.stroke()
+        break
+      case 'circle':
+        ctx.beginPath()
+        ctx.arc(c.x, c.y, Math.max(0, c.radius), 0, Math.PI * 2)
+        if (c.fill) {
+          ctx.fillStyle = color
+          ctx.fill()
+        } else {
+          ctx.strokeStyle = color
+          ctx.lineWidth = c.width ?? 2
+          ctx.stroke()
+        }
+        break
+      case 'arc':
+        ctx.strokeStyle = color
+        ctx.lineWidth = c.width
+        ctx.beginPath()
+        ctx.arc(c.x, c.y, Math.max(0, c.radius), c.start, c.end)
+        ctx.stroke()
+        break
+      case 'path': {
+        if (c.points.length < 2) break
+        ctx.beginPath()
+        ctx.moveTo(c.points[0].x, c.points[0].y)
+        for (let i = 1; i < c.points.length; i++) ctx.lineTo(c.points[i].x, c.points[i].y)
+        if (c.closed) ctx.closePath()
+        if (c.fill) {
+          ctx.fillStyle = color
+          ctx.fill()
+        } else {
+          ctx.strokeStyle = color
+          ctx.lineWidth = c.width ?? 2
+          ctx.stroke()
+        }
+        break
+      }
+      case 'text': {
+        const nextFont = `${Math.round(c.size)}px ${FONTS[c.font ?? 'sans']}`
+        if (nextFont !== font) {
+          ctx.font = nextFont
+          font = nextFont
+        }
+        ctx.fillStyle = color
+        ctx.fillText(c.text, c.x, c.y)
+        break
       }
     }
-
-    ctx.restore()
   }
+
+  ctx.globalCompositeOperation = 'source-over'
+  ctx.shadowBlur = 0
 }
 
 /** Draw a video frame to the canvas, mirrored horizontally (selfie view). */
@@ -54,6 +117,8 @@ export function drawMirroredVideo(
   height: number,
 ): void {
   ctx.save()
+  ctx.shadowBlur = 0
+  ctx.globalCompositeOperation = 'source-over'
   ctx.translate(width, 0)
   ctx.scale(-1, 1)
   ctx.drawImage(video, 0, 0, width, height)

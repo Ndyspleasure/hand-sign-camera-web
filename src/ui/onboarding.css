@@ -64,6 +64,10 @@
   background: radial-gradient(circle at 50% 42%, rgba(0, 229, 255, 0.1), transparent 70%);
   transition: background 0.3s ease;
 }
+.ob-stage svg {
+  max-width: 100%;
+  height: auto;
+}
 .ob-stage.is-success {
   background: radial-gradient(circle at 50% 42%, rgba(52, 211, 153, 0.22), transparent 72%);
   animation: ob-pop 0.5s ease;

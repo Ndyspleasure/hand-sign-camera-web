@@ -2,7 +2,7 @@
 
 /* ---- Status pill ---------------------------------------------------- */
 .status-pill {
-  position: fixed;
+  position: absolute;
   top: calc(12px + env(safe-area-inset-top, 0px));
   left: 50%;
   transform: translateX(-50%);
@@ -94,7 +94,7 @@
 
 /* ---- Control bar ---------------------------------------------------- */
 .control-bar {
-  position: fixed;
+  position: absolute;
   left: 50%;
   bottom: calc(20px + env(safe-area-inset-bottom, 0px));
   transform: translateX(-50%);
@@ -111,7 +111,7 @@
 
 /* Gentle hint shown when the camera is live but no hand is detected yet. */
 .hand-hint {
-  position: fixed;
+  position: absolute;
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);

@@ -16,8 +16,8 @@
 .gg-panel {
   display: flex;
   flex-direction: column;
-  width: min(920px, 100%);
-  max-height: min(92vh, 760px);
+  width: min(940px, 100%);
+  max-height: min(94vh, 820px);
   background: #0d1418;
   border: 1px solid rgba(0, 229, 255, 0.22);
   border-radius: 18px;
@@ -28,8 +28,8 @@
 .gg-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 16px 20px;
+  gap: 12px;
+  padding: 14px 20px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
@@ -37,6 +37,12 @@
   margin: 0;
   font-size: 1.1rem;
   letter-spacing: 0.02em;
+}
+
+.gg-count {
+  margin-left: auto;
+  color: #6f9aa6;
+  font-size: 0.78rem;
 }
 
 .gg-close {
@@ -55,9 +61,9 @@
 
 .gg-body {
   display: grid;
-  grid-template-columns: 260px 1fr;
-  gap: 20px;
-  padding: 22px;
+  grid-template-columns: minmax(220px, 300px) 1fr;
+  gap: 22px;
+  padding: 20px 22px;
   overflow-y: auto;
 }
 
@@ -68,7 +74,11 @@
   background: radial-gradient(circle at 50% 40%, rgba(0, 229, 255, 0.1), transparent 70%);
   border-radius: 14px;
   padding: 12px;
-  min-height: 240px;
+  min-height: 250px;
+}
+.gg-stage svg {
+  max-width: 100%;
+  height: auto;
 }
 
 .gg-info {
@@ -87,35 +97,44 @@
   font-size: 1.5rem;
 }
 
-.gg-effect {
+.gg-emoji {
+  font-size: 1.3rem;
+}
+
+.gg-kind {
   font-size: 0.72rem;
   padding: 4px 10px;
   border-radius: 999px;
   border: 1px solid currentColor;
   white-space: nowrap;
-}
-.gg-effect[data-effect='neon-skeleton'] {
   color: #00e5ff;
 }
-.gg-effect[data-effect='laser'] {
-  color: #ff5c7a;
-}
-.gg-effect[data-effect='particle-spark'] {
+.gg-kind[data-kind='motion'] {
   color: #ffd23f;
+}
+.gg-kind[data-kind='two-hand'] {
+  color: #ff7aa2;
 }
 
 .gg-desc {
   color: #a9c7d0;
   line-height: 1.55;
-  margin: 12px 0 18px;
+  margin: 10px 0 16px;
 }
 
 .gg-info h4 {
-  margin: 0 0 8px;
+  margin: 14px 0 8px;
   font-size: 0.78rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: #6f9aa6;
+}
+
+.gg-effect-name {
+  color: #e8fbff;
+  text-transform: none;
+  letter-spacing: 0.01em;
+  font-size: 0.9rem;
 }
 
 .gg-steps {
@@ -123,12 +142,19 @@
   padding-left: 20px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   line-height: 1.45;
 }
 
+.effect-preview {
+  display: block;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 229, 255, 0.18);
+  background: #081014;
+}
+
 .gg-try {
-  margin-top: 22px;
+  margin-top: 18px;
   border: none;
   background: linear-gradient(135deg, #00e5ff, #22a7c4);
   color: #04222b;
@@ -144,20 +170,21 @@
 
 .gg-picker {
   display: flex;
-  gap: 10px;
-  padding: 14px 18px;
+  gap: 8px;
+  padding: 12px 16px;
   overflow-x: auto;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   scrollbar-width: thin;
 }
 
 .gg-chip {
+  position: relative;
   flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  width: 74px;
+  width: 78px;
   padding: 6px 4px;
   border: 1px solid transparent;
   border-radius: 12px;
@@ -167,6 +194,10 @@
   font-size: 0.68rem;
   transition: border-color 0.2s ease, background 0.2s ease;
 }
+.gg-chip svg {
+  max-width: 100%;
+  height: 52px;
+}
 .gg-chip:hover {
   background: rgba(0, 229, 255, 0.08);
 }
@@ -175,15 +206,23 @@
   background: rgba(0, 229, 255, 0.12);
   color: #e8fbff;
 }
+.gg-chip-kind {
+  position: absolute;
+  top: 3px;
+  right: 4px;
+  font-style: normal;
+  font-size: 0.55rem;
+  color: #ff7aa2;
+}
 
 @media (max-width: 720px) {
   .gg-body {
     grid-template-columns: 1fr;
     gap: 12px;
-    padding: 16px;
+    padding: 14px;
   }
   .gg-stage {
-    min-height: 180px;
+    min-height: 190px;
   }
   .gg-title-row h3 {
     font-size: 1.25rem;

@@ -51,8 +51,10 @@ export default defineConfig({
     })
   ],
   server: {
-    port: 3000,
-    https: true // Geolocation + camera requires HTTPS (even localhost can use self-signed)
+    // http://localhost is a secure context, so camera access works without
+    // HTTPS in dev. (Vite 5 no longer auto-generates a cert for `https: true`,
+    // which left the dev server serving a broken TLS endpoint.)
+    port: 3000
   },
   resolve: {
     alias: {

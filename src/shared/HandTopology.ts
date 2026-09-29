@@ -34,6 +34,9 @@ export const HandLandmark = {
   PINKY_TIP: 20,
 } as const
 
+/** Landmark names by index (e.g. LANDMARK_NAMES[8] === 'INDEX_TIP'). */
+export const LANDMARK_NAMES: readonly string[] = Object.keys(HandLandmark)
+
 /** Fingertip landmark indices (thumb → pinky). */
 export const FINGERTIPS = [4, 8, 12, 16, 20] as const
 

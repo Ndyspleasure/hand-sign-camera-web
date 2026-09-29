@@ -1,0 +1,391 @@
+/* Desktop "code editor" layout (VS Code-inspired). Only applied with .layout-ide. */
+
+.app.layout-ide {
+  display: grid;
+  grid-template-columns: 48px minmax(380px, 40%) minmax(0, 1fr);
+  grid-template-rows: 30px minmax(0, 1fr) 22px;
+  grid-template-areas:
+    'title title title'
+    'activity side work'
+    'status status status';
+  align-items: stretch;
+  justify-content: stretch;
+  background: #1e1e1e;
+  color: #cccccc;
+  --mono: 'Cascadia Code', 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/* ---- Title bar ------------------------------------------------------ */
+.ide-title {
+  grid-area: title;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 10px;
+  background: #1f1f1f;
+  border-bottom: 1px solid #2b2b2b;
+  font-size: 12.5px;
+  color: #9d9d9d;
+  user-select: none;
+}
+.ide-logo {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  font-size: 12px;
+  background: linear-gradient(135deg, #00e5ff, #7c3aed);
+}
+.ide-menu {
+  display: flex;
+  gap: 12px;
+}
+.ide-menu span:hover {
+  color: #e5e5e5;
+}
+.ide-title-center {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #cfcfcf;
+  pointer-events: none;
+}
+.ide-title-btn {
+  margin-left: auto;
+  padding: 2px 10px;
+  border: 1px solid #3c3c3c;
+  border-radius: 5px;
+  background: transparent;
+  color: #cfcfcf;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.ide-title-btn:hover {
+  background: #2a2d2e;
+}
+
+/* ---- Activity bar --------------------------------------------------- */
+.ide-activity {
+  grid-area: activity;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 4px 0;
+  background: #181818;
+  border-right: 1px solid #2b2b2b;
+}
+.ab-btn {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 46px;
+  border: none;
+  border-left: 2px solid transparent;
+  background: none;
+  color: #858585;
+  cursor: pointer;
+}
+.ab-btn:hover {
+  color: #e5e5e5;
+}
+.ab-btn.is-active {
+  color: #e5e5e5;
+  border-left-color: #0078d4;
+}
+.ab-spacer {
+  flex: 1;
+}
+
+/* ---- Editors -------------------------------------------------------- */
+.ide-side {
+  grid-area: side;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: #1e1e1e;
+  border-right: 1px solid #2b2b2b;
+}
+.ide-side .ce {
+  flex: 1.35 1 0;
+}
+.ide-side .lv {
+  flex: 1 1 0;
+  border-top: 1px solid #2b2b2b;
+}
+.ce,
+.lv {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.ce-tabs {
+  flex: 0 0 auto;
+  display: flex;
+  overflow: hidden;
+  background: #181818;
+}
+.ce-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-top: 1px solid transparent;
+  border-right: 1px solid #2b2b2b;
+  background: #181818;
+  color: #9d9d9d;
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+.ce-tab.is-active {
+  background: #1e1e1e;
+  color: #ffffff;
+  border-top-color: #0078d4;
+}
+.ts-badge {
+  color: #3178c6;
+  font-size: 9px;
+  font-weight: 800;
+}
+.json-badge {
+  color: #cbcb41;
+  font-size: 11px;
+}
+.ce-crumbs {
+  flex: 0 0 auto;
+  display: flex;
+  padding: 3px 14px;
+  color: #8a8a8a;
+  font-size: 12px;
+}
+.ce-typing {
+  margin-left: auto;
+  color: #4ec9b0;
+  animation: ide-blink 1.4s ease-in-out infinite;
+}
+
+.ce-body {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+.ce-scroll {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  padding: 4px 0 24px;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 19px;
+}
+.cl {
+  display: flex;
+  white-space: pre;
+}
+.cl-active {
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: inset 0 0 0 1px #282828;
+}
+.cl-n {
+  flex: 0 0 46px;
+  padding-right: 14px;
+  color: #6e7681;
+  text-align: right;
+  user-select: none;
+}
+.cl-active .cl-n {
+  color: #cccccc;
+}
+.cl-code {
+  overflow: hidden;
+}
+.caret {
+  display: inline-block;
+  width: 2px;
+  height: 15px;
+  margin-left: 1px;
+  vertical-align: -3px;
+  background: #aeafad;
+  animation: caret-blink 1s steps(1) infinite;
+}
+
+/* VS Code Dark+ token colors */
+.tk-kw, .tk-lit { color: #569cd6; }
+.tk-ctl { color: #c586c0; }
+.tk-str { color: #ce9178; }
+.tk-num { color: #b5cea8; }
+.tk-com { color: #6a9955; font-style: italic; }
+.tk-type { color: #4ec9b0; }
+.tk-fn { color: #dcdcaa; }
+.tk-var, .tk-prop, .tk-key { color: #9cdcfe; }
+.tk-op { color: #d4d4d4; }
+
+.minimap {
+  flex: 0 0 74px;
+  overflow: hidden;
+  padding: 6px;
+  border-left: 1px solid #252526;
+}
+.mm-line {
+  height: 2px;
+  margin-bottom: 1px;
+  border-radius: 1px;
+}
+.tkbg-kw, .tkbg-lit { background: #569cd6; }
+.tkbg-ctl { background: #c586c0; }
+.tkbg-str { background: #ce9178; }
+.tkbg-num { background: #b5cea8; }
+.tkbg-com { background: #6a9955; }
+.tkbg-type { background: #4ec9b0; }
+.tkbg-fn { background: #dcdcaa; }
+.tkbg-var, .tkbg-prop, .tkbg-key { background: #9cdcfe; }
+.tkbg-op { background: #6e7681; }
+
+.lv-live {
+  margin-left: 8px;
+  color: #6e7681;
+  font-size: 10px;
+}
+.lv-live.on {
+  color: #f14c4c;
+  animation: ide-blink 1.2s ease-in-out infinite;
+}
+
+/* ---- Camera pane + terminal ----------------------------------------- */
+.layout-ide .work-col {
+  grid-area: work;
+  position: relative;
+  inset: auto;
+  min-width: 0;
+  min-height: 0;
+}
+.layout-ide .stage-wrap {
+  background: #1e1e1e;
+}
+.preview-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #f14c4c;
+  box-shadow: 0 0 6px #f14c4c;
+}
+.preview-meta {
+  color: #6e7681;
+}
+
+.terminal {
+  flex: 0 0 32%;
+  display: flex;
+  flex-direction: column;
+  min-height: 140px;
+  background: #181818;
+  border-top: 1px solid #2b2b2b;
+}
+.term-tabs {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 20px;
+  padding: 7px 16px 5px;
+  color: #8a8a8a;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+.term-tabs .is-active {
+  color: #e5e5e5;
+  border-bottom: 1px solid #e5e5e5;
+}
+.term-title {
+  margin-left: auto;
+  letter-spacing: 0;
+}
+.term-body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  padding: 4px 16px 8px;
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 18px;
+}
+.tl {
+  overflow: hidden;
+  white-space: pre;
+  text-overflow: ellipsis;
+}
+.tl-time {
+  margin-right: 8px;
+  color: #6e7681;
+}
+.tl-tag {
+  margin-right: 8px;
+}
+.tl-text {
+  color: #cccccc;
+}
+.tl-boot .tl-tag { color: #569cd6; }
+.tl-hand .tl-tag { color: #4ec9b0; }
+.tl-gesture .tl-tag { color: #dcdcaa; }
+.tl-effect .tl-tag { color: #c586c0; }
+.tl-perf .tl-tag { color: #6a9955; }
+.tl-rec .tl-tag,
+.tl-rec .tl-text { color: #f47174; }
+.tl-trace .tl-tag,
+.tl-trace .tl-text { color: #7d7d7d; }
+.tl-warn .tl-tag { color: #cca700; }
+.tl-error .tl-tag,
+.tl-error .tl-text { color: #f14c4c; }
+.tl-user { color: #23d18b; }
+.tl-path { color: #3b8eea; }
+
+/* ---- Status bar ----------------------------------------------------- */
+.ide-status {
+  grid-area: status;
+  display: flex;
+  align-items: stretch;
+  overflow: hidden;
+  background: #007acc;
+  color: #ffffff;
+  font-size: 12px;
+  white-space: nowrap;
+  user-select: none;
+}
+.sb-item {
+  display: flex;
+  align-items: center;
+  padding: 0 9px;
+}
+.sb-item:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+.sb-remote {
+  background: #16825d;
+}
+.sb-error {
+  background: #c72e2e;
+}
+.sb-rec {
+  background: #c72e2e;
+  animation: ide-blink 1.2s ease-in-out infinite;
+}
+.sb-spacer {
+  flex: 1;
+}
+.sb-dim {
+  opacity: 0.85;
+}
+
+@keyframes caret-blink {
+  50% {
+    opacity: 0;
+  }
+}
+@keyframes ide-blink {
+  50% {
+    opacity: 0.45;
+  }
+}
