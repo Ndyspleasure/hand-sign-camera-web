@@ -1,4 +1,5 @@
 import { memo, useEffect, useLayoutEffect, useMemo, useReducer, useRef } from 'react'
+import { IconPause, IconPlay } from '../icons'
 import { CODE_FILES, type CodeFile } from './codeSamples'
 import { tokenizeTs, type TokenKind } from './highlight'
 
@@ -11,8 +12,12 @@ interface TypingState {
   hold: number
 }
 
+type TypingAction = { type: 'tick'; step: number } | { type: 'open'; file: number }
+
 /** Pure reducer: advance typing by `step` chars, then hold and move to the next file. */
-function typingReducer(s: TypingState, step: number): TypingState {
+function typingReducer(s: TypingState, action: TypingAction): TypingState {
+  if (action.type === 'open') return { file: action.file, chars: 0, hold: 0 }
+  const step = action.step
   const code = CODE_FILES[s.file].code
   if (s.chars >= code.length) {
     if (s.hold + TICK_MS < HOLD_MS) return { ...s, hold: s.hold + TICK_MS }
@@ -55,10 +60,25 @@ function minimapOf(file: CodeFile): MiniLine[] {
   })
 }
 
-const Minimap = memo(function Minimap({ file, typed }: { file: CodeFile; typed: number }) {
+const Minimap = memo(function Minimap({
+  file,
+  typed,
+  onJump,
+}: {
+  file: CodeFile
+  typed: number
+  onJump: (ratio: number) => void
+}) {
   const lines = useMemo(() => minimapOf(file), [file])
   return (
-    <div className="minimap" aria-hidden="true">
+    <div
+      className="minimap"
+      aria-hidden="true"
+      onClick={(e) => {
+        const r = e.currentTarget.getBoundingClientRect()
+        onJump(Math.min(1, Math.max(0, (e.clientY - r.top) / r.height)))
+      }}
+    >
       {lines.map((l, i) => (
         <div
           key={i}
@@ -74,45 +94,64 @@ const Minimap = memo(function Minimap({ file, typed }: { file: CodeFile; typed: 
  * Auto-typing code editor: types the app's real source files one after
  * another with syntax highlighting, line numbers, a caret and a minimap.
  */
-export default function CodeEditor() {
-  const [state, advance] = useReducer(typingReducer, { file: 0, chars: 0, hold: 0 })
+export default function CodeEditor({ typing, onToggleTyping }: { typing: boolean; onToggleTyping: () => void }) {
+  const [state, dispatch] = useReducer(typingReducer, { file: 0, chars: 0, hold: 0 })
   const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    const id = window.setInterval(() => advance(3 + Math.floor(Math.random() * 5)), TICK_MS)
+    if (!typing) return
+    const id = window.setInterval(() => dispatch({ type: 'tick', step: 3 + Math.floor(Math.random() * 5) }), TICK_MS)
     return () => window.clearInterval(id)
-  }, [])
+  }, [typing])
 
   const file = CODE_FILES[state.file]
-  const lines = file.code.slice(0, state.chars).split('\n')
+  // Paused: show the whole file so it can be read and scrolled.
+  const lines = (typing ? file.code.slice(0, state.chars) : file.code).split('\n')
 
   // Keep the line being typed in view.
   useLayoutEffect(() => {
     const el = scrollRef.current
-    if (el) el.scrollTop = el.scrollHeight
-  }, [lines.length, state.file])
+    if (el && typing) el.scrollTop = el.scrollHeight
+  }, [lines.length, state.file, typing])
 
   return (
     <section className="ce">
       <div className="ce-tabs" role="tablist">
         {CODE_FILES.map((f, i) => (
-          <div key={f.name} className={`ce-tab${i === state.file ? ' is-active' : ''}`} role="tab" aria-selected={i === state.file}>
+          <button
+            key={f.name}
+            className={`ce-tab${i === state.file ? ' is-active' : ''}`}
+            role="tab"
+            aria-selected={i === state.file}
+            onClick={() => dispatch({ type: 'open', file: i })}
+            title={f.path}
+          >
             <span className="ts-badge">TS</span>
             {f.name}
-          </div>
+          </button>
         ))}
       </div>
       <div className="ce-crumbs">
         {file.path.split('/').join('  ›  ')}
-        <span className="ce-typing">● typing</span>
+        <button className={`ce-typing${typing ? ' is-on' : ''}`} onClick={onToggleTyping} title={typing ? 'Pause typing and show the whole file' : 'Resume typing'}>
+          {typing ? <IconPause size={11} /> : <IconPlay size={11} />}
+          {typing ? 'Typing' : 'Paused'}
+        </button>
       </div>
       <div className="ce-body">
         <div className="ce-scroll" ref={scrollRef}>
           {lines.map((text, i) => (
-            <CodeLine key={i} n={i + 1} text={text} active={i === lines.length - 1} />
+            <CodeLine key={i} n={i + 1} text={text} active={typing && i === lines.length - 1} />
           ))}
         </div>
-        <Minimap file={file} typed={lines.length} />
+        <Minimap
+          file={file}
+          typed={lines.length}
+          onJump={(ratio) => {
+            const el = scrollRef.current
+            if (el) el.scrollTop = ratio * (el.scrollHeight - el.clientHeight)
+          }}
+        />
       </div>
     </section>
   )

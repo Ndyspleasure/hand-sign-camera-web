@@ -1,3 +1,5 @@
+import { IconBook, IconGraduation } from './icons'
+
 export interface ControlBarProps {
   recording: boolean
   onToggleRecord: () => void
@@ -18,7 +20,9 @@ export default function ControlBar({
   return (
     <div className="control-bar">
       <button className="cb-secondary" onClick={onOpenTutorial} aria-label="Open tutorial">
-        <span className="cb-ico" aria-hidden="true">🎓</span>
+        <span className="cb-ico" aria-hidden="true">
+          <IconGraduation size={20} />
+        </span>
         <span className="cb-txt">Tutorial</span>
       </button>
 
@@ -32,7 +36,9 @@ export default function ControlBar({
       </button>
 
       <button className="cb-secondary" onClick={onOpenGuide} aria-label="Open gesture guide">
-        <span className="cb-ico" aria-hidden="true">📖</span>
+        <span className="cb-ico" aria-hidden="true">
+          <IconBook size={20} />
+        </span>
         <span className="cb-txt">Guide</span>
       </button>
     </div>

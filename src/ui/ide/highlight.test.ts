@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { tokenizeJson, tokenizeTs, type Token } from './highlight'
+import { stripComments, tokenizeJson, tokenizeTs, type Token } from './highlight'
 
 const kinds = (tokens: Token[]) => tokens.filter((t) => t.t.trim()).map((t) => `${t.k}:${t.t}`)
 
@@ -38,5 +38,33 @@ describe('tokenizeJson', () => {
 
   it('handles negative numbers in arrays', () => {
     expect(kinds(tokenizeJson('[0.512, -0.041]'))).toEqual(['op:[', 'num:0.512', 'op:,', 'num:-0.041', 'op:]'])
+  })
+})
+
+describe('stripComments', () => {
+  it('removes line, block and doc comments and blank lines, keeping strings', () => {
+    const src = [
+      '/**',
+      ' * Doc comment',
+      ' */',
+      "import { a } from './a' // trailing",
+      '',
+      'const url = "http://x" /* inline */ + `//${a}`',
+      '  // indented note',
+      "const s = 'it\\'s // not a comment'",
+    ].join('\n')
+    expect(stripComments(src)).toBe(
+      ["import { a } from './a'", 'const url = "http://x"  + `//${a}`', "const s = 'it\\'s // not a comment'"].join('\n'),
+    )
+  })
+
+  it('leaves no comment or blank line in the bundled source files', async () => {
+    const { CODE_FILES } = await import('./codeSamples')
+    for (const f of CODE_FILES) {
+      for (const line of f.code.split('\n')) {
+        expect(line.trim(), f.name).not.toBe('')
+        expect(tokenizeTs(line).some((t) => t.k === 'com'), `${f.name}: ${line}`).toBe(false)
+      }
+    }
   })
 })

@@ -5,25 +5,31 @@ import {
   requestCamera,
   stopStream,
 } from './camera'
-import { drawMirroredVideo, renderCommands } from './compositor/canvas-utils'
+import { drawDemoBackground, drawMirroredVideo, renderCommands } from './compositor/canvas-utils'
+import { demoHands } from './demo/DemoSource'
 import { isGuideGesture, type GuideGesture } from './gestures/registry'
 import {
   EFFECT_FOR_GESTURE,
   EffectEngine,
   Gesture,
-  gestureEmoji,
   gestureLabel,
-  GeometricGestureRecognizer,
-  GestureStabilizer,
+  GesturePipeline,
+  handKeys,
   LANDMARK_NAMES,
-  WaveDetector,
-  type Landmark,
-  type TrackedHand,
+  projectHand,
 } from './shared'
 import ControlBar from './ui/ControlBar'
 import GestureGuide from './ui/GestureGuide'
+import { IconAlert, IconHand } from './ui/icons'
 import CodeEditor from './ui/ide/CodeEditor'
-import { IdeActivityBar, IdeStatusBar, IdeTitleBar, useFullscreen } from './ui/ide/IdeChrome'
+import {
+  IdeActivityBar,
+  IdeStatusBar,
+  IdeTitleBar,
+  useFullscreen,
+  useIdeSettings,
+  type IdeActions,
+} from './ui/ide/IdeChrome'
 import LandmarksView from './ui/ide/LandmarksView'
 import TerminalPanel from './ui/ide/TerminalPanel'
 import Onboarding from './ui/Onboarding'
@@ -43,25 +49,6 @@ interface LiveGestures {
 
 const NO_HANDS: LiveGestures = { gestures: [], twoHand: Gesture.NONE }
 
-/** Project normalized MediaPipe landmarks into mirrored canvas pixel space. */
-function projectHand(hand: TrackedHand, width: number, height: number): TrackedHand {
-  return {
-    ...hand,
-    landmarks: hand.landmarks.map<Landmark>((lm) => ({
-      x: (1 - lm.x) * width,
-      y: lm.y * height,
-      z: lm.z * width,
-    })),
-  }
-}
-
-/** Stable per-hand keys: MediaPipe's handedness when unambiguous, else screen order. */
-function handKeys(hands: TrackedHand[]): string[] {
-  const labels = hands.map((h) => h.handedness)
-  const unique = new Set(labels).size === labels.length && !labels.includes('Unknown')
-  return unique ? labels : hands.map((_, i) => `hand${i}`)
-}
-
 /** Pick the best-supported WebM MIME type for MediaRecorder. */
 function pickMimeType(): string {
   const candidates = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm']
@@ -74,7 +61,11 @@ function pickMimeType(): string {
 }
 
 const round3 = (n: number): number => Math.round(n * 1000) / 1000
-const describe = (g: Gesture): string => `${gestureEmoji(g)} ${gestureLabel(g)}`
+const describe = (g: Gesture): string => gestureLabel(g)
+/** Demo canvas: 720p, portrait on portrait screens. */
+const demoSize = () =>
+  window.innerHeight > window.innerWidth ? { width: 720, height: 1280 } : { width: 1280, height: 720 }
+const startsInDemo = (): boolean => new URLSearchParams(window.location.search).has('demo')
 
 export default function App() {
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -82,9 +73,7 @@ export default function App() {
 
   const trackerRef = useRef<HandTracker | null>(null)
   const engineRef = useRef(new EffectEngine())
-  const recognizerRef = useRef(new GeometricGestureRecognizer())
-  const stabilizerRef = useRef(new GestureStabilizer())
-  const waveRef = useRef(new WaveDetector())
+  const pipelineRef = useRef(new GesturePipeline())
 
   const streamRef = useRef<MediaStream | null>(null)
   const rafRef = useRef<number | null>(null)
@@ -108,6 +97,10 @@ export default function App() {
   const desktop = useDesktopLayout()
   const desktopRef = useRef(desktop)
   const [fullscreen, toggleFullscreen] = useFullscreen()
+  const [ide, setIde] = useIdeSettings()
+  const [demo, setDemo] = useState(startsInDemo)
+  const demoRef = useRef(demo)
+  const demoStartRef = useRef(0)
 
   const [status, setStatus] = useState<Status>('loading')
   const [errorMsg, setErrorMsg] = useState('')
@@ -128,7 +121,8 @@ export default function App() {
   const [guideOpen, setGuideOpen] = useState(() =>
     new URLSearchParams(window.location.search).has('guide'),
   )
-  const deepLinkedRef = useRef(guideOpen)
+  const [guideTarget, setGuideTarget] = useState<GuideGesture | undefined>(guideGesture)
+  const deepLinkedRef = useRef(guideOpen || demo)
 
   useEffect(() => {
     desktopRef.current = desktop
@@ -157,6 +151,14 @@ export default function App() {
   }, [])
 
   const closeGuide = useCallback(() => setGuideOpen(false), [])
+  const openGuide = useCallback((gesture?: GuideGesture) => {
+    setGuideTarget(gesture)
+    setGuideOpen(true)
+  }, [])
+  const openTutorial = useCallback(() => {
+    setGuideOpen(false)
+    setOnboardingOpen(true)
+  }, [])
 
   // Auto-open the tutorial on the first successful start (not when the user
   // arrived via a guide deep link).
@@ -178,6 +180,17 @@ export default function App() {
       const video = videoRef.current
       const canvas = canvasRef.current
       if (!video || !canvas) return
+
+      if (demoRef.current) {
+        const size = demoSize()
+        canvas.width = size.width
+        canvas.height = size.height
+        setVideoSize(`${canvas.width}×${canvas.height}`)
+        log('boot', 'demo mode: synthetic hands through the real recognizer and effects')
+        flushLogs()
+        startLoop()
+        return
+      }
 
       try {
         log('boot', 'hand-sign-camera · PWA · offline-ready')
@@ -206,14 +219,9 @@ export default function App() {
         }
         trackerRef.current = tracker
         log('boot', `HandLandmarker ready · delegate=${tracker.delegate} · numHands=2`)
-        log('boot', 'tracking loop started — show your hand ✋')
+        log('boot', 'tracking loop started: show your hand to the camera')
         flushLogs()
-
-        setStatus('ready')
-        lastTsRef.current = performance.now()
-        lastPerfRef.current = lastTsRef.current
-        fpsFramesRef.current = 0
-        rafRef.current = requestAnimationFrame(loop)
+        startLoop()
       } catch (err) {
         if (cancelled) return
         const message = err instanceof Error ? err.message : String(err)
@@ -222,6 +230,15 @@ export default function App() {
         setErrorMsg(message)
         setStatus('error')
       }
+    }
+
+    function startLoop() {
+      setStatus('ready')
+      lastTsRef.current = performance.now()
+      lastPerfRef.current = lastTsRef.current
+      demoStartRef.current = lastTsRef.current
+      fpsFramesRef.current = 0
+      rafRef.current = requestAnimationFrame(loop)
     }
 
     function logChanges(prev: LiveGestures, next: LiveGestures, keys: string[]) {
@@ -242,7 +259,8 @@ export default function App() {
       const video = videoRef.current
       const canvas = canvasRef.current
       const tracker = trackerRef.current
-      if (!video || !canvas || !tracker) return
+      const inDemo = demoRef.current
+      if (!video || !canvas || (!tracker && !inDemo)) return
 
       const ctx = canvas.getContext('2d')
       if (!ctx) return
@@ -255,7 +273,10 @@ export default function App() {
       const size = { width: canvas.width, height: canvas.height }
 
       // Detect (normalized), project to mirrored pixel space, order left → right.
-      const result = tracker.track(video, ts)
+      const result =
+        inDemo || !tracker
+          ? { hands: demoHands(ts - demoStartRef.current, size.width, size.height).hands, inferenceMs: 0 }
+          : tracker.track(video, ts)
       inferRef.current = inferRef.current
         ? inferRef.current * 0.9 + result.inferenceMs * 0.1
         : result.inferenceMs
@@ -265,22 +286,8 @@ export default function App() {
       const hands = pairs.map((p) => p.px)
       const keys = handKeys(hands)
 
-      // Per-hand gesture: static pose → wave motion → debounce.
-      const recognizer = recognizerRef.current
-      const stabilizer = stabilizerRef.current
-      const wave = waveRef.current
-      const gestures = hands.map((hand, i) => {
-        let raw = recognizer.recognize(hand)
-        if (wave.update(keys[i], hand, raw, ts)) raw = Gesture.WAVE
-        return stabilizer.update(keys[i], raw, ts)
-      })
-      const rawPair =
-        hands.length >= 2
-          ? recognizer.recognizeTwoHands(hands[0], hands[1], gestures[0], gestures[1])
-          : Gesture.NONE
-      const twoHand = stabilizer.update('pair', rawPair, ts)
-      wave.prune(keys)
-      stabilizer.prune([...keys, 'pair'])
+      // Per-hand gesture (pose → wave → debounce), then the two-hand gesture.
+      const { gestures, twoHand } = pipelineRef.current.process(hands, keys, ts)
 
       // React state only changes when the gestures do.
       const prev = liveRef.current
@@ -291,8 +298,9 @@ export default function App() {
         setLive(next)
       }
 
-      // Draw mirrored camera frame, then each hand's effect.
-      drawMirroredVideo(ctx, video, size.width, size.height)
+      // Draw the mirrored camera frame (or the demo backdrop), then each hand's effect.
+      if (inDemo) drawDemoBackground(ctx, size.width, size.height, ts)
+      else drawMirroredVideo(ctx, video, size.width, size.height)
       const commands = engineRef.current.step({ hands, gestures, twoHand }, size, dt)
       renderCommands(ctx, commands)
 
@@ -368,11 +376,11 @@ export default function App() {
       a.download = name
       a.click()
       URL.revokeObjectURL(url)
-      logRef.current.push('rec', `■ saved ${name} (${(blob.size / 1e6).toFixed(1)} MB)`)
+      logRef.current.push('rec', `saved ${name} (${(blob.size / 1e6).toFixed(1)} MB)`)
     }
     recorder.start()
     recorderRef.current = recorder
-    logRef.current.push('rec', `● recording started (${mimeType})`)
+    logRef.current.push('rec', `recording started (${mimeType})`)
     setRecording(true)
     setRecordSeconds(0)
     recordStartRef.current = performance.now()
@@ -405,21 +413,49 @@ export default function App() {
     [live],
   )
 
+  const toggleDemo = useCallback(() => {
+    const next = !demoRef.current
+    demoRef.current = next
+    demoStartRef.current = performance.now()
+    setDemo(next)
+    const url = new URL(window.location.href)
+    if (next) url.searchParams.set('demo', '')
+    else url.searchParams.delete('demo')
+    window.history.replaceState(null, '', url.toString().replace('demo=&', 'demo&').replace(/demo=$/, 'demo'))
+    logRef.current.push('boot', next ? 'demo mode on' : 'demo mode off: back to the camera')
+    // Start (or restart) the loop when there is no running camera to switch from/to.
+    if (status !== 'ready' || (!next && !trackerRef.current)) retry()
+  }, [status, retry])
+
+  const toggleRecord = recording ? stopRecording : startRecording
+  const actions: IdeActions = {
+    openGuide,
+    openTutorial,
+    demo,
+    toggleDemo,
+    recording,
+    canRecord: status === 'ready',
+    toggleRecord,
+  }
+  const clearLogs = useCallback(() => {
+    logRef.current.clear()
+    setLogs([])
+  }, [])
+  const sideVisible = ide.side && (ide.editor || ide.landmarks)
+
   // Layout note: the <canvas> keeps the same position in the tree in both
   // layouts (conditional siblings leave their slots in place), so switching
   // between desktop and mobile never remounts it.
   return (
-    <div className={`app ${desktop ? 'layout-ide' : 'layout-mobile'}`}>
+    <div className={`app ${desktop ? 'layout-ide' : 'layout-mobile'}${desktop && !sideVisible ? ' no-side' : ''}`}>
       <video ref={videoRef} className="source-video" playsInline muted />
 
-      {desktop && <IdeTitleBar fullscreen={fullscreen} onToggleFullscreen={toggleFullscreen} />}
-      {desktop && (
-        <IdeActivityBar onOpenGuide={() => setGuideOpen(true)} onOpenTutorial={() => setOnboardingOpen(true)} />
-      )}
-      {desktop && (
+      {desktop && <IdeTitleBar fullscreen={fullscreen} onToggleFullscreen={toggleFullscreen} actions={actions} />}
+      {desktop && <IdeActivityBar settings={ide} onSettings={setIde} actions={actions} />}
+      {desktop && sideVisible && (
         <aside className="ide-side">
-          <CodeEditor />
-          <LandmarksView telemetry={telemetry} />
+          {ide.editor && <CodeEditor typing={ide.typing} onToggleTyping={() => setIde({ typing: !ide.typing })} />}
+          {ide.landmarks && <LandmarksView telemetry={telemetry} />}
         </aside>
       )}
 
@@ -427,8 +463,10 @@ export default function App() {
         {desktop && (
           <div className="ce-tabs preview-tabs">
             <div className="ce-tab is-active">
-              <span className="preview-dot" /> camera.live
-              <span className="preview-meta">{videoSize ? `— ${videoSize} · mirrored` : '— starting…'}</span>
+              <span className={`preview-dot${demo ? ' is-demo' : ''}`} /> {demo ? 'Demo' : 'Camera'}
+              <span className="preview-meta">
+                {status !== 'ready' ? 'starting…' : demo ? `${videoSize} · synthetic hands` : `${videoSize} · mirrored`}
+              </span>
             </div>
           </div>
         )}
@@ -442,11 +480,14 @@ export default function App() {
               twoHand={live.twoHand}
               recording={recording}
               recordingSeconds={recordSeconds}
+              demo={demo}
             />
           )}
 
-          {status === 'ready' && live.gestures.length === 0 && !onboardingOpen && !guideOpen && (
-            <div className="hand-hint">✋ Show your hand to the camera</div>
+          {status === 'ready' && !demo && live.gestures.length === 0 && !onboardingOpen && !guideOpen && (
+            <div className="hand-hint">
+              <IconHand size={20} /> Show your hand to the camera
+            </div>
           )}
 
           {status === 'loading' && (
@@ -459,26 +500,40 @@ export default function App() {
 
           {status === 'error' && (
             <div className="overlay center">
+              <IconAlert size={28} className="overlay-icon" />
               <h2>Can&apos;t start the camera</h2>
               <p className="error">{errorMsg}</p>
-              <p className="hint">Allow camera access and make sure you&apos;re on HTTPS, then retry.</p>
-              <button className="btn-primary" onClick={retry}>
-                Retry
-              </button>
+              <p className="hint">Allow camera access and make sure you&apos;re on HTTPS, then try again.</p>
+              <div className="overlay-actions">
+                <button className="btn-primary" onClick={retry}>
+                  Try again
+                </button>
+                <button className="btn-secondary" onClick={toggleDemo}>
+                  Watch the demo
+                </button>
+              </div>
             </div>
           )}
 
           {status === 'ready' && (
             <ControlBar
               recording={recording}
-              onToggleRecord={recording ? stopRecording : startRecording}
-              onOpenTutorial={() => setOnboardingOpen(true)}
-              onOpenGuide={() => setGuideOpen(true)}
+              onToggleRecord={toggleRecord}
+              onOpenTutorial={openTutorial}
+              onOpenGuide={() => openGuide()}
             />
           )}
         </main>
 
-        {desktop && <TerminalPanel lines={logs} />}
+        {desktop && ide.terminal && (
+          <TerminalPanel
+            lines={logs}
+            active={liveGestures}
+            onClear={clearLogs}
+            onHide={() => setIde({ terminal: false })}
+            onOpenGesture={openGuide}
+          />
+        )}
       </div>
 
       {desktop && (
@@ -487,15 +542,12 @@ export default function App() {
           status={status}
           recording={recording}
           recordingSeconds={recordSeconds}
+          actions={actions}
+          onRetry={retry}
         />
       )}
 
-      <GestureGuide
-        open={guideOpen}
-        initialGesture={guideGesture}
-        onClose={closeGuide}
-        onTryGesture={closeGuide}
-      />
+      <GestureGuide open={guideOpen} initialGesture={guideTarget} onClose={closeGuide} onTryGesture={closeGuide} />
 
       <Onboarding
         open={onboardingOpen}
@@ -503,6 +555,10 @@ export default function App() {
         liveGestures={liveGestures}
         onClose={closeOnboarding}
         onFinish={closeOnboarding}
+        onOpenGuide={() => {
+          closeOnboarding()
+          openGuide()
+        }}
       />
     </div>
   )

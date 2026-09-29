@@ -39,12 +39,6 @@
   letter-spacing: 0.02em;
 }
 
-.gg-count {
-  margin-left: auto;
-  color: #6f9aa6;
-  font-size: 0.78rem;
-}
-
 .gg-close {
   border: none;
   background: rgba(255, 255, 255, 0.06);
@@ -61,7 +55,7 @@
 
 .gg-body {
   display: grid;
-  grid-template-columns: minmax(220px, 300px) 1fr;
+  grid-template-columns: minmax(260px, 360px) 1fr;
   gap: 22px;
   padding: 20px 22px;
   overflow-y: auto;
@@ -95,10 +89,6 @@
 .gg-title-row h3 {
   margin: 0;
   font-size: 1.5rem;
-}
-
-.gg-emoji {
-  font-size: 1.3rem;
 }
 
 .gg-kind {
@@ -206,15 +196,6 @@
   background: rgba(0, 229, 255, 0.12);
   color: #e8fbff;
 }
-.gg-chip-kind {
-  position: absolute;
-  top: 3px;
-  right: 4px;
-  font-style: normal;
-  font-size: 0.55rem;
-  color: #ff7aa2;
-}
-
 @media (max-width: 720px) {
   .gg-body {
     grid-template-columns: 1fr;
@@ -226,5 +207,143 @@
   }
   .gg-title-row h3 {
     font-size: 1.25rem;
+  }
+}
+
+/* ---- Header filters, player controls, variants ---- */
+.gg-head-icon {
+  color: #00e5ff;
+}
+.gg-filters {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+  padding: 3px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+}
+.gg-filter {
+  border: none;
+  background: none;
+  color: #8fb0b9;
+  font: inherit;
+  font-size: 0.78rem;
+  padding: 6px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.gg-filter:hover {
+  color: #e8fbff;
+}
+.gg-filter.is-active {
+  background: rgba(0, 229, 255, 0.14);
+  color: #e8fbff;
+}
+.gg-close {
+  display: grid;
+  place-items: center;
+}
+
+.gg-demo {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+.gg-player {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.gg-play {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 229, 255, 0.35);
+  background: rgba(0, 229, 255, 0.08);
+  color: #cdf6ff;
+  cursor: pointer;
+}
+.gg-play:hover {
+  background: rgba(0, 229, 255, 0.18);
+}
+.gg-progress {
+  flex: 1;
+  height: 3px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+.gg-progress span {
+  display: block;
+  height: 100%;
+  background: #00e5ff;
+  transform-origin: left center;
+}
+.gg-auto {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: none;
+  color: #8fb0b9;
+  font: inherit;
+  font-size: 0.72rem;
+  padding: 4px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.gg-auto.is-active {
+  border-color: rgba(0, 229, 255, 0.5);
+  color: #cdf6ff;
+}
+.gg-variants {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.gg-variant {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+  color: #a9c7d0;
+  font: inherit;
+  font-size: 0.74rem;
+  padding: 5px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+.gg-variant:hover {
+  border-color: rgba(0, 229, 255, 0.4);
+  color: #e8fbff;
+}
+.gg-variant.is-active {
+  border-color: #00e5ff;
+  background: rgba(0, 229, 255, 0.12);
+  color: #e8fbff;
+}
+.gg-number {
+  color: #9fb9c1;
+}
+.gg-try {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.gg-picker .gg-chip svg {
+  width: auto;
+}
+
+@media (max-width: 720px) {
+  .gg-header {
+    flex-wrap: wrap;
+  }
+  .gg-filters {
+    order: 3;
+    width: 100%;
+    margin-left: 0;
+    overflow-x: auto;
+  }
+  .gg-close {
+    margin-left: auto;
   }
 }

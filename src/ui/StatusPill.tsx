@@ -1,5 +1,5 @@
 import { EFFECT_FOR_GESTURE, effectLabel } from '../shared/effectMap'
-import { Gesture, gestureEmoji, gestureLabel } from '../shared/Gesture'
+import { Gesture, gestureLabel } from '../shared/Gesture'
 
 function formatTime(totalSeconds: number): string {
   const m = Math.floor(totalSeconds / 60)
@@ -14,6 +14,8 @@ export interface StatusPillProps {
   twoHand: Gesture
   recording: boolean
   recordingSeconds: number
+  /** Demo mode: synthetic hands instead of the camera. */
+  demo?: boolean
 }
 
 /**
@@ -22,14 +24,14 @@ export interface StatusPillProps {
  * they trigger. Shows a REC badge + timer while recording. The label pops on
  * each change for lightweight feedback.
  */
-export default function StatusPill({ gestures, twoHand, recording, recordingSeconds }: StatusPillProps) {
+export default function StatusPill({ gestures, twoHand, recording, recordingSeconds, demo = false }: StatusPillProps) {
   let tone: 'idle' | 'tracking' | 'active' = 'idle'
   let label = 'Show your hand'
   let sub = ''
 
   if (twoHand !== Gesture.NONE) {
     tone = 'active'
-    label = `${gestureEmoji(twoHand)} ${gestureLabel(twoHand)}`
+    label = gestureLabel(twoHand)
     sub = effectLabel(EFFECT_FOR_GESTURE[twoHand])
   } else if (gestures.length > 0) {
     const recognized = gestures.filter((g) => g !== Gesture.NONE)
@@ -39,7 +41,7 @@ export default function StatusPill({ gestures, twoHand, recording, recordingSeco
     } else {
       tone = 'active'
       label = gestures
-        .map((g) => (g === Gesture.NONE ? '…' : `${gestureEmoji(g)} ${gestureLabel(g)}`))
+        .map((g) => (g === Gesture.NONE ? '…' : gestureLabel(g)))
         .join('  +  ')
       sub = [...new Set(recognized.map((g) => effectLabel(EFFECT_FOR_GESTURE[g])))].join(' + ')
     }
@@ -47,6 +49,7 @@ export default function StatusPill({ gestures, twoHand, recording, recordingSeco
 
   return (
     <div className="status-pill" role="status" aria-live="polite">
+      {demo && <span className="sp-demo">Demo</span>}
       {recording && (
         <span className="sp-rec">
           REC <span className="sp-time">{formatTime(recordingSeconds)}</span>

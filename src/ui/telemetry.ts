@@ -49,6 +49,11 @@ export class LogBuffer {
     this.dirty = true
   }
 
+  clear(): void {
+    this.lines = []
+    this.dirty = true
+  }
+
   /** A copy of the lines if anything was pushed since the last call, else null. */
   takeIfDirty(): LogLine[] | null {
     if (!this.dirty) return null

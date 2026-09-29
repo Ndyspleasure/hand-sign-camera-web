@@ -124,3 +124,32 @@ export function drawMirroredVideo(
   ctx.drawImage(video, 0, 0, width, height)
   ctx.restore()
 }
+
+/** Demo-mode backdrop: a dark gradient with a slowly drifting grid. */
+export function drawDemoBackground(ctx: CanvasRenderingContext2D, width: number, height: number, ts: number): void {
+  ctx.save()
+  ctx.shadowBlur = 0
+  ctx.globalCompositeOperation = 'source-over'
+  ctx.globalAlpha = 1
+  const g = ctx.createRadialGradient(width / 2, height * 0.45, 0, width / 2, height * 0.45, Math.max(width, height) * 0.75)
+  g.addColorStop(0, '#0f1d24')
+  g.addColorStop(1, '#05090c')
+  ctx.fillStyle = g
+  ctx.fillRect(0, 0, width, height)
+
+  const step = 48
+  const offset = (ts / 60) % step
+  ctx.strokeStyle = 'rgba(0, 229, 255, 0.06)'
+  ctx.lineWidth = 1
+  ctx.beginPath()
+  for (let x = -step + offset; x < width + step; x += step) {
+    ctx.moveTo(x, 0)
+    ctx.lineTo(x, height)
+  }
+  for (let y = -step + offset; y < height + step; y += step) {
+    ctx.moveTo(0, y)
+    ctx.lineTo(width, y)
+  }
+  ctx.stroke()
+  ctx.restore()
+}

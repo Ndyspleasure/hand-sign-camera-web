@@ -85,3 +85,41 @@ export function tokenizeJson(line: string): Token[] {
   }
   return out
 }
+
+/**
+ * Remove every comment from TypeScript source and drop the lines left blank,
+ * so the editor shows only lines of code. String and template literals are
+ * respected (a `//` inside a string stays).
+ */
+export function stripComments(source: string): string {
+  let out = ''
+  let i = 0
+  const n = source.length
+  while (i < n) {
+    const c = source[i]
+    const next = source[i + 1]
+    if (c === '/' && next === '/') {
+      while (i < n && source[i] !== '\n') i++
+    } else if (c === '/' && next === '*') {
+      const end = source.indexOf('*/', i + 2)
+      i = end < 0 ? n : end + 2
+    } else if (c === "'" || c === '"' || c === '`') {
+      let j = i + 1
+      while (j < n && source[j] !== c) {
+        if (source[j] === '\\') j++
+        else if (c !== '`' && source[j] === '\n') break
+        j++
+      }
+      out += source.slice(i, j + 1)
+      i = j + 1
+    } else {
+      out += c
+      i++
+    }
+  }
+  return out
+    .split('\n')
+    .map((line) => line.replace(/\s+$/, ''))
+    .filter((line) => line.trim() !== '')
+    .join('\n')
+}

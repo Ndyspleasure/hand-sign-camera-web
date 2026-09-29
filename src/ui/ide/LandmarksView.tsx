@@ -1,14 +1,14 @@
-import { memo, useMemo } from 'react'
-import { EFFECT_FOR_GESTURE, Gesture, LANDMARK_NAMES as NAMES } from '../../shared'
+import { memo, useMemo, useState } from 'react'
+import { EFFECT_FOR_GESTURE, Gesture } from '../../shared'
+import { IconCheck, IconFiles } from '../icons'
 import type { Telemetry } from '../telemetry'
 import { tokenizeJson } from './highlight'
 
 const f3 = (n: number): string => (n < 0 ? '' : ' ') + n.toFixed(3)
 
-/** Render the live telemetry as JSON-with-comments lines. */
+/** Render the live telemetry as JSON lines (valid JSON, no comments). */
 export function telemetryJson(t: Telemetry | null): string[] {
   const lines = [
-    '// landmarks.live.json — streamed from the tracker (~10 Hz)',
     '{',
     `  "frame": ${t?.frame ?? 0},`,
     `  "fps": ${(t?.fps ?? 0).toFixed(1)},`,
@@ -17,7 +17,7 @@ export function telemetryJson(t: Telemetry | null): string[] {
   ]
   const hands = t?.hands ?? []
   if (hands.length === 0) {
-    lines.push('  "hands": []  // waiting for a hand…', '}')
+    lines.push('  "hands": []', '}')
     return lines
   }
   lines.push('  "hands": [')
@@ -32,7 +32,7 @@ export function telemetryJson(t: Telemetry | null): string[] {
     )
     h.landmarks.forEach(([x, y, z], j) => {
       const comma = j < h.landmarks.length - 1 ? ',' : ' '
-      lines.push(`        [${f3(x)}, ${f3(y)}, ${f3(z)}]${comma} // ${j} ${NAMES[j] ?? ''}`)
+      lines.push(`        [${f3(x)}, ${f3(y)}, ${f3(z)}]${comma}`)
     })
     lines.push('      ]', `    }${i < hands.length - 1 ? ',' : ''}`)
   })
@@ -60,14 +60,28 @@ const JsonLine = memo(function JsonLine({ n, text }: { n: number; text: string }
 export default function LandmarksView({ telemetry }: { telemetry: Telemetry | null }) {
   const lines = telemetryJson(telemetry)
   const live = (telemetry?.hands.length ?? 0) > 0
+  const [copied, setCopied] = useState(false)
+  const copy = () => {
+    void navigator.clipboard
+      ?.writeText(lines.join('\n'))
+      .then(() => {
+        setCopied(true)
+        window.setTimeout(() => setCopied(false), 1500)
+      })
+      .catch(() => {})
+  }
   return (
     <section className="lv">
       <div className="ce-tabs">
         <div className="ce-tab is-active">
           <span className="json-badge">{'{}'}</span>
           landmarks.live.json
-          <span className={`lv-live${live ? ' on' : ''}`}>{live ? '● LIVE' : '○ idle'}</span>
+          <span className={`lv-live${live ? ' on' : ''}`}>{live ? 'Live' : 'Idle'}</span>
         </div>
+        <button className="lv-copy" onClick={copy} title="Copy the current snapshot as JSON">
+          {copied ? <IconCheck size={13} /> : <IconFiles size={13} />}
+          {copied ? 'Copied' : 'Copy'}
+        </button>
       </div>
       <div className="ce-body">
         <div className="ce-scroll lv-scroll">

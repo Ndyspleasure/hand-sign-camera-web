@@ -139,3 +139,34 @@ body,
 .btn-primary:hover {
   filter: brightness(1.08);
 }
+
+.overlay-icon {
+  color: #ff8a8a;
+}
+.overlay-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.btn-secondary {
+  font: inherit;
+  cursor: pointer;
+  margin-top: 6px;
+  padding: 11px 22px;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 229, 255, 0.4);
+  background: transparent;
+  color: #cdf6ff;
+}
+.btn-secondary:hover {
+  background: rgba(0, 229, 255, 0.1);
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

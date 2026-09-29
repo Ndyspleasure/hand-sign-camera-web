@@ -1,6 +1,23 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { isGuideGesture, type GuideGesture } from '../../gestures/registry'
 import { EFFECT_FOR_GESTURE, effectLabel, Gesture, gestureLabel } from '../../shared'
+import {
+  IconBook,
+  IconCollapse,
+  IconExpand,
+  IconExternal,
+  IconFiles,
+  IconGraduation,
+  IconLogo,
+  IconPlay,
+  IconRecord,
+  IconSettings,
+  IconStop,
+  IconTerminal,
+} from '../icons'
 import type { Telemetry } from '../telemetry'
+
+export const VANILLATE_URL = 'https://vanillate.id'
 
 /** Track and toggle browser full screen. */
 export function useFullscreen(): [boolean, () => void] {
@@ -17,75 +34,207 @@ export function useFullscreen(): [boolean, () => void] {
   return [active, toggle]
 }
 
-export function IdeTitleBar({ fullscreen, onToggleFullscreen }: { fullscreen: boolean; onToggleFullscreen: () => void }) {
+/** Workspace panels and preferences (persisted per browser). */
+export interface IdeSettings {
+  side: boolean
+  editor: boolean
+  landmarks: boolean
+  terminal: boolean
+  typing: boolean
+}
+
+const DEFAULT_SETTINGS: IdeSettings = { side: true, editor: true, landmarks: true, terminal: true, typing: true }
+const SETTINGS_KEY = 'hsc.ide'
+
+export function useIdeSettings(): [IdeSettings, (patch: Partial<IdeSettings>) => void] {
+  const [settings, setSettings] = useState<IdeSettings>(() => {
+    try {
+      const raw = localStorage.getItem(SETTINGS_KEY)
+      return raw ? { ...DEFAULT_SETTINGS, ...(JSON.parse(raw) as Partial<IdeSettings>) } : DEFAULT_SETTINGS
+    } catch {
+      return DEFAULT_SETTINGS
+    }
+  })
+  const update = useCallback((patch: Partial<IdeSettings>) => {
+    setSettings((s) => {
+      const next = { ...s, ...patch }
+      try {
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify(next))
+      } catch {
+        // storage unavailable: keep the setting for this session only
+      }
+      return next
+    })
+  }, [])
+  return [settings, update]
+}
+
+export interface IdeActions {
+  openGuide: (gesture?: GuideGesture) => void
+  openTutorial: () => void
+  demo: boolean
+  toggleDemo: () => void
+  recording: boolean
+  canRecord: boolean
+  toggleRecord: () => void
+}
+
+export function IdeTitleBar({
+  fullscreen,
+  onToggleFullscreen,
+  actions,
+}: {
+  fullscreen: boolean
+  onToggleFullscreen: () => void
+  actions: IdeActions
+}) {
   return (
     <header className="ide-title">
-      <span className="ide-logo" aria-hidden="true">✋</span>
-      <nav className="ide-menu" aria-hidden="true">
-        {['File', 'Edit', 'Selection', 'View', 'Go', 'Run', 'Terminal', 'Help'].map((m) => (
-          <span key={m}>{m}</span>
-        ))}
+      <a className="ide-brand" href={VANILLATE_URL} target="_blank" rel="noreferrer" title="Vanillate">
+        <span className="ide-logo">
+          <IconLogo size={14} />
+        </span>
+      </a>
+      <nav className="ide-menu" aria-label="Main">
+        <button onClick={() => actions.openGuide()}>Guide</button>
+        <button onClick={actions.openTutorial}>Tutorial</button>
+        <button className={actions.demo ? 'is-on' : ''} onClick={actions.toggleDemo} aria-pressed={actions.demo}>
+          {actions.demo ? 'Exit demo' : 'Demo'}
+        </button>
+        <button onClick={actions.toggleRecord} disabled={!actions.canRecord} className={actions.recording ? 'is-rec' : ''}>
+          {actions.recording ? 'Stop recording' : 'Record'}
+        </button>
       </nav>
-      <div className="ide-title-center">hand-sign-camera — Vanillate Live</div>
-      <button className="ide-title-btn" onClick={onToggleFullscreen} title="Toggle full screen (F11)">
-        {fullscreen ? '⤡ Exit full screen' : '⛶ Full screen'}
+      <div className="ide-title-center">Hand Sign Camera · Vanillate</div>
+      <a className="ide-title-link" href={VANILLATE_URL} target="_blank" rel="noreferrer">
+        vanillate.id <IconExternal size={12} />
+      </a>
+      <button
+        className="ide-title-btn"
+        onClick={onToggleFullscreen}
+        title={fullscreen ? 'Exit full screen' : 'Full screen'}
+        aria-label={fullscreen ? 'Exit full screen' : 'Full screen'}
+      >
+        {fullscreen ? <IconCollapse size={14} /> : <IconExpand size={14} />}
       </button>
     </header>
   )
 }
 
-function Icon({ children }: { children: ReactNode }) {
+function ActivityButton({
+  title,
+  active = false,
+  onClick,
+  children,
+}: {
+  title: string
+  active?: boolean
+  onClick: () => void
+  children: ReactNode
+}) {
   return (
-    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <button className={`ab-btn${active ? ' is-active' : ''}`} title={title} aria-label={title} aria-pressed={active} onClick={onClick}>
       {children}
-    </svg>
+    </button>
   )
 }
 
-export function IdeActivityBar({ onOpenGuide, onOpenTutorial }: { onOpenGuide: () => void; onOpenTutorial: () => void }) {
+function Toggle({ label, hint, checked, onChange }: { label: string; hint: string; checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <label className="st-row">
+      <span>
+        <span className="st-label">{label}</span>
+        <span className="st-hint">{hint}</span>
+      </span>
+      <input type="checkbox" className="st-switch" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+    </label>
+  )
+}
+
+function SettingsPopover({
+  settings,
+  onChange,
+  onClose,
+}: {
+  settings: IdeSettings
+  onChange: (patch: Partial<IdeSettings>) => void
+  onClose: () => void
+}) {
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const onDown = (e: PointerEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node) && !(e.target as Element).closest('.ab-settings')) onClose()
+    }
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    window.addEventListener('pointerdown', onDown)
+    window.addEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener('pointerdown', onDown)
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [onClose])
+
+  return (
+    <div className="ide-settings" ref={ref} role="dialog" aria-label="Workspace settings">
+      <h3>Workspace</h3>
+      <Toggle label="Source code" hint="The app's source, typed live" checked={settings.editor} onChange={(v) => onChange({ editor: v, side: v || settings.landmarks })} />
+      <Toggle label="Live landmarks" hint="21 points per hand as JSON" checked={settings.landmarks} onChange={(v) => onChange({ landmarks: v, side: v || settings.editor })} />
+      <Toggle label="Tracker panel" hint="Log and gesture list" checked={settings.terminal} onChange={(v) => onChange({ terminal: v })} />
+      <Toggle label="Typing animation" hint="Off shows the whole file" checked={settings.typing} onChange={(v) => onChange({ typing: v })} />
+      <p className="st-about">
+        Hand Sign Camera by <a href={VANILLATE_URL} target="_blank" rel="noreferrer">Vanillate</a>. Runs fully in your
+        browser: video never leaves your device.
+      </p>
+    </div>
+  )
+}
+
+export function IdeActivityBar({
+  settings,
+  onSettings,
+  actions,
+}: {
+  settings: IdeSettings
+  onSettings: (patch: Partial<IdeSettings>) => void
+  actions: IdeActions
+}) {
+  const [open, setOpen] = useState(false)
+  const close = useCallback(() => setOpen(false), [])
+  const sideVisible = settings.side && (settings.editor || settings.landmarks)
   return (
     <nav className="ide-activity" aria-label="Activity bar">
-      <button className="ab-btn is-active" title="Explorer — live source">
-        <Icon>
-          <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
-          <path d="M14 3v5h5" />
-        </Icon>
-      </button>
-      <button className="ab-btn" title="Search">
-        <Icon>
-          <circle cx="11" cy="11" r="6" />
-          <path d="m20 20-4.5-4.5" />
-        </Icon>
-      </button>
-      <button className="ab-btn" title="Source control">
-        <Icon>
-          <circle cx="6" cy="5" r="2" />
-          <circle cx="6" cy="19" r="2" />
-          <circle cx="18" cy="8" r="2" />
-          <path d="M6 7v10M18 10c0 5-7 3-11 8" />
-        </Icon>
-      </button>
-      <button className="ab-btn" title="Gesture guide" onClick={onOpenGuide}>
-        <Icon>
-          <rect x="3" y="3" width="7" height="7" rx="1.5" />
-          <rect x="14" y="3" width="7" height="7" rx="1.5" />
-          <rect x="3" y="14" width="7" height="7" rx="1.5" />
-          <rect x="14" y="14" width="7" height="7" rx="1.5" />
-        </Icon>
-      </button>
-      <button className="ab-btn" title="Tutorial" onClick={onOpenTutorial}>
-        <Icon>
-          <path d="m2 9 10-5 10 5-10 5z" />
-          <path d="M6 11v5c3 2 9 2 12 0v-5" />
-        </Icon>
-      </button>
+      <ActivityButton
+        title={sideVisible ? 'Hide source panel' : 'Show source panel'}
+        active={sideVisible}
+        onClick={() =>
+          sideVisible ? onSettings({ side: false }) : onSettings({ side: true, editor: true, landmarks: settings.landmarks || !settings.editor })
+        }
+      >
+        <IconFiles size={22} />
+      </ActivityButton>
+      <ActivityButton title="Gesture guide" onClick={() => actions.openGuide()}>
+        <IconBook size={22} />
+      </ActivityButton>
+      <ActivityButton title="Tutorial" onClick={actions.openTutorial}>
+        <IconGraduation size={22} />
+      </ActivityButton>
+      <ActivityButton title={actions.demo ? 'Exit demo' : 'Play demo'} active={actions.demo} onClick={actions.toggleDemo}>
+        <IconPlay size={20} />
+      </ActivityButton>
+      <ActivityButton
+        title={settings.terminal ? 'Hide tracker panel' : 'Show tracker panel'}
+        active={settings.terminal}
+        onClick={() => onSettings({ terminal: !settings.terminal })}
+      >
+        <IconTerminal size={22} />
+      </ActivityButton>
       <span className="ab-spacer" />
-      <button className="ab-btn" title="Settings">
-        <Icon>
-          <circle cx="12" cy="12" r="3" />
-          <path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1" />
-        </Icon>
-      </button>
+      <span className="ab-settings">
+        <ActivityButton title="Settings" active={open} onClick={() => setOpen((v) => !v)}>
+          <IconSettings size={22} />
+        </ActivityButton>
+      </span>
+      {open && <SettingsPopover settings={settings} onChange={onSettings} onClose={close} />}
     </nav>
   )
 }
@@ -95,37 +244,61 @@ export function IdeStatusBar({
   status,
   recording,
   recordingSeconds,
+  actions,
+  onRetry,
 }: {
   telemetry: Telemetry | null
   status: 'loading' | 'ready' | 'error'
   recording: boolean
   recordingSeconds: number
+  actions: IdeActions
+  onRetry: () => void
 }) {
   const hands = telemetry?.hands ?? []
   const twoHand = telemetry?.twoHand ?? Gesture.NONE
+  const current = twoHand !== Gesture.NONE ? twoHand : hands.map((h) => h.gesture).find((g) => g !== Gesture.NONE)
   const gestures =
-    twoHand !== Gesture.NONE ? gestureLabel(twoHand) : hands.map((h) => gestureLabel(h.gesture)).join(' + ') || '—'
-  const effects = (telemetry?.effects ?? []).map(effectLabel).join(' + ') ||
-    (twoHand !== Gesture.NONE ? effectLabel(EFFECT_FOR_GESTURE[twoHand]) : '—')
+    twoHand !== Gesture.NONE ? gestureLabel(twoHand) : hands.map((h) => gestureLabel(h.gesture)).join(' + ') || 'None'
+  const effects =
+    (telemetry?.effects ?? []).map(effectLabel).join(' + ') ||
+    (twoHand !== Gesture.NONE ? effectLabel(EFFECT_FOR_GESTURE[twoHand]) : 'None')
   const m = Math.floor(recordingSeconds / 60)
   const s = String(recordingSeconds % 60).padStart(2, '0')
 
   return (
     <footer className="ide-status">
-      <span className="sb-item sb-remote">⌁ LIVE</span>
-      <span className="sb-item">⎇ main</span>
-      <span className="sb-item">⊗ 0 ⚠ 0</span>
-      <span className={`sb-item sb-state sb-${status}`}>
-        {status === 'ready' ? '● Tracking' : status === 'loading' ? '◌ Starting…' : '✕ Camera error'}
-      </span>
-      {recording && <span className="sb-item sb-rec">● REC {m}:{s}</span>}
+      <button className={`sb-item sb-remote${actions.demo ? ' is-demo' : ''}`} onClick={actions.toggleDemo} title={actions.demo ? 'Switch to camera' : 'Play the demo'}>
+        {actions.demo ? 'Demo' : 'Camera'}
+      </button>
+      {status === 'error' ? (
+        <button className="sb-item sb-state sb-error" onClick={onRetry} title="Try the camera again">
+          Camera error · Retry
+        </button>
+      ) : (
+        <span className={`sb-item sb-state sb-${status}`}>{status === 'ready' ? 'Tracking' : 'Starting…'}</span>
+      )}
+      {recording && (
+        <button className="sb-item sb-rec" onClick={actions.toggleRecord} title="Stop recording">
+          <IconStop size={10} /> REC {m}:{s}
+        </button>
+      )}
+      {!recording && actions.canRecord && (
+        <button className="sb-item" onClick={actions.toggleRecord} title="Record a clip">
+          <IconRecord size={10} /> Record
+        </button>
+      )}
       <span className="sb-spacer" />
-      <span className="sb-item">✋ {hands.length}</span>
-      <span className="sb-item">Gesture: {gestures}</span>
+      <span className="sb-item">Hands {hands.length}</span>
+      <button
+        className="sb-item"
+        disabled={!current}
+        onClick={() => current && isGuideGesture(current) && actions.openGuide(current)}
+        title={current ? 'Open this gesture in the Guide' : undefined}
+      >
+        Gesture: {gestures}
+      </button>
       <span className="sb-item">Effect: {effects}</span>
       <span className="sb-item">{Math.round(telemetry?.fps ?? 0)} fps</span>
-      <span className="sb-item sb-dim">TypeScript React</span>
-      <span className="sb-item sb-dim">UTF-8</span>
     </footer>
   )
 }

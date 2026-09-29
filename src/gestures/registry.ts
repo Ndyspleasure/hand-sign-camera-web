@@ -19,6 +19,8 @@ export interface GestureInfo {
   name: string
   emoji: string
   kind: GestureKind
+  /** Number the pose also shows when counting on fingers (1–5). */
+  number?: number
   description: string
   /** Short, visual step-by-step for "How to make it". */
   howTo: string[]
@@ -99,6 +101,14 @@ const RAW: Record<GuideGesture, RawInfo> = {
   },
 }
 
+const NUMBERS: Partial<Record<GuideGesture, number>> = {
+  [Gesture.POINTING]: 1,
+  [Gesture.PEACE]: 2,
+  [Gesture.THREE]: 3,
+  [Gesture.FOUR]: 4,
+  [Gesture.OPEN_PALM]: 5,
+}
+
 function build(): Record<GuideGesture, GestureInfo> {
   const out = {} as Record<GuideGesture, GestureInfo>
   for (const key of Object.keys(RAW) as GuideGesture[]) {
@@ -108,6 +118,7 @@ function build(): Record<GuideGesture, GestureInfo> {
       name: gestureLabel(key),
       emoji: gestureEmoji(key),
       kind: gestureKind(key),
+      number: NUMBERS[key],
       description: RAW[key].description,
       howTo: RAW[key].howTo,
       effectId,

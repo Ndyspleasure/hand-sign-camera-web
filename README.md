@@ -4,37 +4,38 @@
 
 ## Features
 
-- ✋ **16 gestures** — 13 single-hand poses, 👋 Wave (motion), and two-hand 🫶 Heart / 🙌 Double Palm
-- ✨ **A distinct effect for every gesture** (table below)
-- 🙌 **Two hands at once** — each hand gets its own gesture and effect; two-hand gestures take over both
-- 🖥️ **Desktop "code editor" layout** (≥1024 px with a mouse/trackpad): a VS Code-style full-screen workspace — the editor types out the app's real source, `landmarks.live.json` streams live landmark coordinates, a terminal streams tracker logs, and a status bar shows hands/gestures/effects/FPS. Mobile keeps the simple camera layout.
-- 📖 **Gesture Guide** with animated 21-landmark SVG hands and a **live preview of each effect**
-- 🎓 **Interactive tutorial** that advances only when the camera actually detects each gesture
-- ⏺️ **Recording** to WebM with a live timer
-- 📴 **Offline PWA** — WASM runtime and model are cached after first use
+- **16 gestures**: 13 single-hand poses, Wave (motion), and two-hand Heart / Double Palm
+- **A distinct effect for every gesture** (table below)
+- **Two hands at once**: each hand gets its own gesture and effect; two-hand gestures take over both
+- **Gesture Guide** with animated 21-landmark SVG hands: 3–6 animation variants per gesture (forming, counting 1–10 on two hands, double-hand versions, fist bump, heart beat, high five, …), auto-cycling or pick one to loop, plus a live preview of each effect
+- **Interactive tutorial** that advances only when the camera actually detects each gesture
+- **Demo mode** (`?demo`, or the Demo button): synthetic hands, played from the same animation scripts, run through the real recognizer and effects, with no camera needed
+- **Desktop workspace** (≥1024 px with a mouse/trackpad): a full-screen, code-editor style layout. The editor types out the app's real source (shown without comments), `landmarks.live.json` streams live coordinates, the tracker panel shows a filterable log and a gesture reference, and a status bar shows hands/gesture/effect/FPS. Every control works: open files, pause typing, copy JSON, toggle panels (Settings), switch camera/demo, record.
+- **Recording** to WebM with a live timer
+- **Offline PWA**: WASM runtime and model are cached after first use
 
 ## Gestures & effects
 
 | Gesture | How | Effect |
 |---|---|---|
-| ✋ Open Palm | all five fingers spread | Neon Skeleton |
-| ✊ Fist | all fingers curled | Shockwave |
-| ✌️ Peace | index + middle up | Rainbow Trail |
-| ☝️ Pointing | index up | Laser |
-| 👍 Thumbs Up | thumb up, fingers curled | Star Burst |
-| 👎 Thumbs Down | thumb down, fingers curled | Rain Cloud |
-| 👌 OK | thumb–index ring, others up | Halo |
-| 🤘 Rock | index + pinky up, thumb tucked | Lightning |
-| 🤏 Pinch | thumb & index tips together | Particle Spark |
-| 🤙 Call Me | thumb + pinky out | Sound Waves |
+| Open Palm | all five fingers spread | Neon Skeleton |
+| Fist | all fingers curled | Shockwave |
+| Peace | index + middle up | Rainbow Trail |
+| Pointing | index up | Laser |
+| Thumbs Up | thumb up, fingers curled | Star Burst |
+| Thumbs Down | thumb down, fingers curled | Rain Cloud |
+| OK | thumb–index ring, others up | Halo |
+| Rock | index + pinky up, thumb tucked | Lightning |
+| Pinch | thumb & index tips together | Particle Spark |
+| Call Me | thumb + pinky out | Sound Waves |
 | 3️⃣ Three | index + middle + ring up | Tri-Beam |
 | 4️⃣ Four | four fingers up, thumb tucked | Code Rain |
-| 🤟 I Love You | thumb + index + pinky out | Floating Hearts |
-| 👋 Wave | open palm swinging side to side | Ripple |
-| 🫶 Heart (2 hands) | index tips touch on top, thumbs below | Big Heart |
-| 🙌 Double Palm (2 hands) | both palms open | Energy Beam |
+| I Love You | thumb + index + pinky out | Floating Hearts |
+| Wave | open palm swinging side to side | Ripple |
+| Heart (2 hands) | index tips touch on top, thumbs below | Big Heart |
+| Double Palm (2 hands) | both palms open | Energy Beam |
 
-Deep links: `?guide` opens the Gesture Guide (`?guide=HEART` selects a gesture); `?layout=ide` / `?layout=mobile` force a layout.
+Deep links: `?guide` opens the Gesture Guide (`?guide=HEART` selects a gesture); `?demo` starts demo mode; `?layout=ide` / `?layout=mobile` force a layout.
 
 ## Local setup
 
