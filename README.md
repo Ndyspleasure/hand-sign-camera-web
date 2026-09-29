@@ -91,7 +91,7 @@ Maps `DrawCommand[]` to Canvas 2D with minimal state changes.
 
 ## Deployment to Netlify
 
-The repo is connected to Netlify: every push to `main` deploys automatically, and pull requests get deploy previews. `netlify.toml` sets `npm run build` → `dist` on Node 20. For a manual deploy, run `npm run build` and drag `dist/` to https://app.netlify.com/drop.
+The repo is connected to Netlify: every push to `main` deploys automatically, and pull requests get deploy previews. The site is served at **https://handsign.vanillate.id**; the old `vanillate-hand-sign-camera.netlify.app` address 301-redirects there (see `netlify.toml`). `netlify.toml` sets `npm run build` → `dist` on Node 20. For a manual deploy, run `npm run build` and drag `dist/` to https://app.netlify.com/drop.
 
 Netlify serves HTTPS by default, which the camera requires (except on localhost).
 
