@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   attachStreamToVideo,
   HandTracker,
@@ -19,9 +19,7 @@ import {
   projectHand,
 } from './shared'
 import ControlBar from './ui/ControlBar'
-import GestureGuide from './ui/GestureGuide'
 import { IconAlert, IconHand } from './ui/icons'
-import CodeEditor from './ui/ide/CodeEditor'
 import {
   IdeActivityBar,
   IdeStatusBar,
@@ -30,9 +28,6 @@ import {
   useIdeSettings,
   type IdeActions,
 } from './ui/ide/IdeChrome'
-import LandmarksView from './ui/ide/LandmarksView'
-import TerminalPanel from './ui/ide/TerminalPanel'
-import Onboarding from './ui/Onboarding'
 import StatusPill from './ui/StatusPill'
 import { LogBuffer, type LogLevel, type LogLine, type Telemetry } from './ui/telemetry'
 import { useDesktopLayout } from './ui/useMediaQuery'
@@ -61,6 +56,14 @@ function pickMimeType(): string {
 }
 
 const round3 = (n: number): number => Math.round(n * 1000) / 1000
+// Loaded on demand: the camera starts without waiting for the guide, the
+// tutorial or the desktop panels.
+const GestureGuide = lazy(() => import('./ui/GestureGuide'))
+const Onboarding = lazy(() => import('./ui/Onboarding'))
+const CodeEditor = lazy(() => import('./ui/ide/CodeEditor'))
+const LandmarksView = lazy(() => import('./ui/ide/LandmarksView'))
+const TerminalPanel = lazy(() => import('./ui/ide/TerminalPanel'))
+
 const describe = (g: Gesture): string => gestureLabel(g)
 /** Demo canvas: 720p, portrait on portrait screens. */
 const demoSize = () =>
@@ -454,8 +457,10 @@ export default function App() {
       {desktop && <IdeActivityBar settings={ide} onSettings={setIde} actions={actions} />}
       {desktop && sideVisible && (
         <aside className="ide-side">
-          {ide.editor && <CodeEditor typing={ide.typing} onToggleTyping={() => setIde({ typing: !ide.typing })} />}
-          {ide.landmarks && <LandmarksView telemetry={telemetry} />}
+          <Suspense fallback={null}>
+            {ide.editor && <CodeEditor typing={ide.typing} onToggleTyping={() => setIde({ typing: !ide.typing })} />}
+            {ide.landmarks && <LandmarksView telemetry={telemetry} />}
+          </Suspense>
         </aside>
       )}
 
@@ -493,7 +498,8 @@ export default function App() {
           {status === 'loading' && (
             <div className="overlay center">
               <div className="spinner" />
-              <p>Starting camera &amp; hand tracking…</p>
+              <h2>Starting the camera</h2>
+              <p>Loading hand tracking…</p>
               <p className="hint">First load downloads the model (~20&nbsp;MB); later loads are instant.</p>
             </div>
           )}
@@ -526,6 +532,7 @@ export default function App() {
         </main>
 
         {desktop && ide.terminal && (
+          <Suspense fallback={<section className="terminal" />}>
           <TerminalPanel
             lines={logs}
             active={liveGestures}
@@ -533,6 +540,7 @@ export default function App() {
             onHide={() => setIde({ terminal: false })}
             onOpenGesture={openGuide}
           />
+          </Suspense>
         )}
       </div>
 
@@ -547,8 +555,14 @@ export default function App() {
         />
       )}
 
-      <GestureGuide open={guideOpen} initialGesture={guideTarget} onClose={closeGuide} onTryGesture={closeGuide} />
+      <Suspense fallback={null}>
+        {guideOpen && (
+          <GestureGuide open={guideOpen} initialGesture={guideTarget} onClose={closeGuide} onTryGesture={closeGuide} />
+        )}
+      </Suspense>
 
+      <Suspense fallback={null}>
+        {onboardingOpen && (
       <Onboarding
         open={onboardingOpen}
         cameraReady={status === 'ready'}
@@ -560,6 +574,8 @@ export default function App() {
           openGuide()
         }}
       />
+        )}
+      </Suspense>
     </div>
   )
 }

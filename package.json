@@ -5,7 +5,8 @@
   "scripts": {
     "prepare:assets": "node scripts/prepare-mediapipe.mjs",
     "dev": "node scripts/prepare-mediapipe.mjs && vite",
-    "build": "node scripts/prepare-mediapipe.mjs && tsc && vite build",
+    "build": "node scripts/prepare-mediapipe.mjs && tsc && vite build && node scripts/build-seo.mjs && node scripts/check-seo.mjs",
+    "og:images": "node scripts/og-images.mjs",
     "preview": "vite preview",
     "lint": "eslint src --ext .ts,.tsx",
     "test": "vitest run"

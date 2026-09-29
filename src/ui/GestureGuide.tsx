@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import GestureFigure from '../hand-svg/GestureFigure'
 import { restFrame, useGesturePlayer } from '../gestures/animation'
 import { GESTURES, GUIDE_ORDER, type GuideGesture } from '../gestures/registry'
+import { GESTURE_SEO } from '../seo/content'
 import type { GestureKind } from '../shared/Gesture'
 import EffectPreview from './EffectPreview'
 import { IconArrowRight, IconBook, IconClose, IconPause, IconPlay } from './icons'
@@ -74,6 +75,7 @@ export default function GestureGuide({ open, onClose, onTryGesture, initialGestu
         <header className="gg-header">
           <IconBook size={20} className="gg-head-icon" />
           <h2>Gesture Guide</h2>
+          <a className="gg-all" href="/gestures/">All gestures</a>
           <div className="gg-filters" role="tablist" aria-label="Filter gestures">
             {FILTERS.map((f) => (
               <button
@@ -158,6 +160,7 @@ export default function GestureGuide({ open, onClose, onTryGesture, initialGestu
             </h4>
             <EffectPreview gesture={selected} width={520} height={230} />
 
+            <div className="gg-actions">
             {onTryGesture && (
               <button
                 className="gg-try"
@@ -169,6 +172,10 @@ export default function GestureGuide({ open, onClose, onTryGesture, initialGestu
                 Try it on camera <IconArrowRight size={16} />
               </button>
             )}
+            <a className="gg-more" href={`/gestures/${GESTURE_SEO[selected].slug}/`}>
+              Full guide: {GESTURE_SEO[selected].name}
+            </a>
+            </div>
           </div>
         </div>
 

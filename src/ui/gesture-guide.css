@@ -347,3 +347,27 @@
     margin-left: auto;
   }
 }
+.gg-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  margin-top: 18px;
+}
+.gg-actions .gg-try {
+  margin-top: 0;
+}
+.gg-more,
+.gg-all {
+  color: #8fd8e6;
+  font-size: 0.85rem;
+  text-underline-offset: 3px;
+}
+.gg-all {
+  font-size: 0.78rem;
+}
+@media (max-width: 720px) {
+  .gg-all {
+    display: none;
+  }
+}

@@ -35,13 +35,34 @@
 | Heart (2 hands) | index tips touch on top, thumbs below | Big Heart |
 | Double Palm (2 hands) | both palms open | Energy Beam |
 
-Deep links: `?guide` opens the Gesture Guide (`?guide=HEART` selects a gesture); `?demo` starts demo mode; `?layout=ide` / `?layout=mobile` force a layout.
+## Site structure
+
+| URL | Page |
+|---|---|
+| `/` | Home: what the app does, how it works, all gestures, FAQ |
+| `/camera/` | The camera app (PWA start page) |
+| `/gestures/` | Gesture guide hub (one-hand, motion, two-hand, counting) |
+| `/gestures/<slug>/` | One page per gesture: how to make it, meaning, how it's recognized, effect, tips, variations |
+| `/privacy/` | On-device processing, what is downloaded and stored |
+
+App deep links: `/camera/?guide` opens the Gesture Guide (`?guide=HEART` selects a gesture); `?demo` starts demo mode; `?layout=ide` / `?layout=mobile` force a layout. Old links on `/` (`/?guide=…`, `/?demo`) redirect to `/camera/`.
+
+## SEO
+
+Content pages are rendered to static HTML at build time from the same gesture data the app uses (`src/seo/`), with zero client JavaScript and inlined CSS:
+
+- Unique title, meta description, H1 and heading outline per page; canonical URLs; Open Graph + Twitter cards with a 1200×630 image per page (`public/og/`)
+- JSON-LD: `WebSite`, `WebApplication`, `Organization`, `FAQPage` (home), `CollectionPage`/`ItemList` (hub), `HowTo` (gesture pages), `BreadcrumbList`
+- `sitemap.xml`, `robots.txt` (non-production Netlify builds disallow crawling), `llms.txt` for AI assistants, real 404s (no SPA catch-all)
+- Canonical origin comes from Netlify's `URL` (or `SITE_URL`); set a custom domain in Netlify and everything follows
+- `npm run build` runs `scripts/check-seo.mjs`, which fails the build on missing/duplicate titles or descriptions, broken internal links, bad canonicals, invalid JSON-LD, heading jumps or noindex pages in the sitemap
+- OG images and icons are regenerated with `npm run og:images` while `npm run dev` is running (needs Playwright)
 
 ## Local setup
 
 ```bash
 npm install
-npm run dev     # http://localhost:3000 (localhost is a secure context, so the camera works over http)
+npm run dev     # http://localhost:3000 (camera app at /camera/; localhost is a secure context, so the camera works over http)
 npm test        # unit tests (vitest)
 npm run build   # production build → dist/
 ```

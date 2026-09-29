@@ -90,7 +90,7 @@ export function IdeTitleBar({
 }) {
   return (
     <header className="ide-title">
-      <a className="ide-brand" href={VANILLATE_URL} target="_blank" rel="noreferrer" title="Vanillate">
+      <a className="ide-brand" href="/" title="Hand Sign Camera home" aria-label="Hand Sign Camera home">
         <span className="ide-logo">
           <IconLogo size={14} />
         </span>
