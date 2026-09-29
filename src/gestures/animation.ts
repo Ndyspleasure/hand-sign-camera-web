@@ -1,126 +1,104 @@
-import { useEffect, useRef, useState } from 'react'
-import { blendPose, type FingerName, type HandPose } from '../hand-svg/handModel'
-import type { GesturePose } from './poses'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { GESTURE_POSES } from './poses'
+import type { GuideGesture } from './registry'
+import { frameOf, sampleScript, scriptDuration, SCRIPTS, type FigureFrame } from './scripts'
+import type { Gesture } from '../shared/Gesture'
+
+/** The gesture's target pose as a still frame (picker chips, success state). */
+export function restFrame(gesture: Gesture): FigureFrame {
+  const g = GESTURE_POSES[gesture]
+  return frameOf({ pose: g.pose, rotate: g.rotate, dur: 0, hold: 0 })
+}
+
+export interface GesturePlayerOptions {
+  /** Run the animation (false = hold the rest frame). */
+  playing?: boolean
+  /** Hold the target pose with success styling. */
+  success?: boolean
+  /** Move on to the next variant after this many passes (0 = never). */
+  passes?: number
+}
+
+export interface GesturePlayer {
+  frame: FigureFrame
+  /** Index of the variant being played. */
+  variant: number
+  /** Variant names, in order. */
+  variants: string[]
+  /** Whether the current variant draws two hands. */
+  pair: boolean
+  /** Progress through the current variant (0..1), for a progress bar. */
+  progress: number
+  /** Pick a variant; it then loops until another is picked. */
+  select: (index: number) => void
+  /** Go back to cycling through every variant. */
+  autoplay: () => void
+  auto: boolean
+}
+
+const reducedMotion = (): boolean =>
+  typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true
 
 /**
- * Animation states a gesture demo can be in. `demonstrating` and `idle` are
- * motion loops; the rest hold the target pose and expose visual flags
- * (detected / shake / pulse) for the renderer to style.
+ * Plays a gesture's keyframe scripts: cycles through every variant (each
+ * repeated `passes` times) until the user picks one, which then loops. One
+ * requestAnimationFrame loop, only while playing.
  */
-export type GestureAnimationState =
-  | 'idle'
-  | 'demonstrating'
-  | 'waiting'
-  | 'detected'
-  | 'success'
-  | 'error'
+export function useGesturePlayer(gesture: GuideGesture, options: GesturePlayerOptions = {}): GesturePlayer {
+  const { playing = true, success = false, passes = 2 } = options
+  const scripts = SCRIPTS[gesture]
+  const [variant, setVariant] = useState(0)
+  const [auto, setAuto] = useState(true)
+  const [frame, setFrame] = useState<FigureFrame>(() => restFrame(gesture))
+  const [progress, setProgress] = useState(0)
+  const startRef = useRef(0)
 
-export interface AnimatedHand {
-  pose: HandPose
-  rotate?: number
-  /** Success / detected styling. */
-  detected: boolean
-  /** Error shake. */
-  shake: boolean
-  /** Gentle "your turn" invite pulse. */
-  pulse: boolean
-}
+  // A new gesture starts at its first variant in autoplay.
+  useEffect(() => {
+    setVariant(0)
+    setAuto(true)
+  }, [gesture])
 
-const clamp01 = (n: number): number => (n < 0 ? 0 : n > 1 ? 1 : n)
-const easeInOut = (t: number): number => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2)
-
-const OPEN_POSE: HandPose = {
-  thumb: { curl: 0 },
-  index: { curl: 0 },
-  middle: { curl: 0 },
-  ring: { curl: 0 },
-  pinky: { curl: 0 },
-}
-
-/** Fingers form the shape in this order for a natural staggered motion. */
-const FORM_ORDER: FingerName[] = ['pinky', 'ring', 'middle', 'index', 'thumb']
-
-function fullProgress(value: number): Record<FingerName, number> {
-  return { thumb: value, index: value, middle: value, ring: value, pinky: value }
-}
-
-// Demonstration timeline (ms).
-const FORM = 950
-const HOLD = 900
-const RELEASE = 550
-const REST = 650
-const STAGGER = 120
-const FINGER_DURATION = 480
-const CYCLE = FORM + HOLD + RELEASE + REST
-
-const STATIC_STATES: GestureAnimationState[] = ['waiting', 'detected', 'success', 'error']
-
-/**
- * Drives a live {@link AnimatedHand} for a gesture in a given state:
- * - demonstrating → fingers form the shape one by one, hold, release, loop
- * - idle          → gentle breathing around the shape
- * - waiting       → holds the shape with an invite pulse
- * - detected/success → holds the shape with success styling
- * - error         → holds the shape with a shake
- * Lightweight: one rAF only while actually animating.
- */
-export function useGestureAnimation(
-  target: GesturePose,
-  state: GestureAnimationState = 'demonstrating',
-): AnimatedHand {
-  const [pose, setPose] = useState<HandPose>(target.pose)
-  const rafRef = useRef<number | null>(null)
+  const animate = playing && !success && !reducedMotion()
+  const script = scripts[Math.min(variant, scripts.length - 1)]
 
   useEffect(() => {
-    const to = target.pose
-
-    if (STATIC_STATES.includes(state)) {
-      setPose(to)
+    if (!animate) {
+      setFrame(success || !playing ? restFrame(gesture) : sampleScript(script, scriptDuration(script), false))
+      setProgress(0)
       return
     }
-
-    const start = performance.now()
-
+    startRef.current = performance.now()
+    const total = scriptDuration(script)
+    let raf = 0
     const tick = (now: number): void => {
-      const elapsed = now - start
-
-      if (state === 'idle') {
-        // Breathe: ease slightly out of the shape and back, forever.
-        const s = (Math.sin(elapsed / 900) + 1) / 2 // 0..1
-        setPose(blendPose(OPEN_POSE, to, fullProgress(1 - 0.12 * s)))
-      } else {
-        // demonstrating
-        const e = elapsed % CYCLE
-        if (e < FORM) {
-          const progress = fullProgress(0)
-          FORM_ORDER.forEach((finger, i) => {
-            progress[finger] = easeInOut(clamp01((e - i * STAGGER) / FINGER_DURATION))
-          })
-          setPose(blendPose(OPEN_POSE, to, progress))
-        } else if (e < FORM + HOLD) {
-          setPose(to)
-        } else if (e < FORM + HOLD + RELEASE) {
-          const rt = easeInOut((e - FORM - HOLD) / RELEASE)
-          setPose(blendPose(OPEN_POSE, to, fullProgress(1 - rt)))
-        } else {
-          setPose(OPEN_POSE)
-        }
+      const t = now - startRef.current
+      if (auto && passes > 0 && scripts.length > 1 && t >= total * passes) {
+        setVariant((v) => (v + 1) % scripts.length)
+        return
       }
-
-      rafRef.current = requestAnimationFrame(tick)
+      setFrame(sampleScript(script, t))
+      setProgress((t % total) / total)
+      raf = requestAnimationFrame(tick)
     }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [animate, script, scripts, auto, passes, gesture, success, playing])
 
-    rafRef.current = requestAnimationFrame(tick)
-    return () => {
-      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current)
-    }
-  }, [target, state])
+  const select = useCallback((index: number) => {
+    setAuto(false)
+    setVariant(index)
+  }, [])
+  const autoplay = useCallback(() => setAuto(true), [])
 
   return {
-    pose,
-    rotate: target.rotate,
-    detected: state === 'detected' || state === 'success',
-    shake: state === 'error',
-    pulse: state === 'waiting',
+    frame,
+    variant,
+    variants: scripts.map((s) => s.name),
+    pair: script.pair === true,
+    progress,
+    select,
+    autoplay,
+    auto,
   }
 }

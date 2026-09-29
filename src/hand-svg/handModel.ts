@@ -52,9 +52,13 @@ const BASE: Record<number, Point> = {
   17: { x: 146, y: 160 }, // pinky MCP
 }
 
-/** Movable joints when the finger is fully extended. */
+/**
+ * Movable joints when the finger is fully extended. The thumb is spread wide
+ * enough that the recognizer's thumb test (tip → index knuckle > 0.6 × hand
+ * scale) reads it as extended, so guide poses match real detection.
+ */
 const EXTENDED: Record<number, Point> = {
-  2: { x: 56, y: 176 }, 3: { x: 44, y: 156 }, 4: { x: 34, y: 138 },
+  2: { x: 50, y: 176 }, 3: { x: 32, y: 154 }, 4: { x: 18, y: 132 },
   6: { x: 77, y: 116 }, 7: { x: 75, y: 92 }, 8: { x: 73, y: 72 },
   10: { x: 104, y: 108 }, 11: { x: 104, y: 82 }, 12: { x: 104, y: 60 },
   14: { x: 129, y: 114 }, 15: { x: 131, y: 90 }, 16: { x: 133, y: 70 },
@@ -118,6 +122,42 @@ export function resolveLandmarks(pose: HandPose): Point[] {
   }
 
   return pts
+}
+
+/** Rotate points by `deg` degrees around `center` (screen coords, y down). */
+export function rotatePoints(points: Point[], deg: number, center: Point = VIEW_CENTER): Point[] {
+  if (!deg) return points
+  const r = (deg * Math.PI) / 180
+  const cos = Math.cos(r)
+  const sin = Math.sin(r)
+  return points.map((p) => {
+    const dx = p.x - center.x
+    const dy = p.y - center.y
+    return { x: center.x + dx * cos - dy * sin, y: center.y + dx * sin + dy * cos }
+  })
+}
+
+/** Placement of a mirrored pair of hands for two-hand gestures. */
+export interface TwoHandLayout {
+  /** Width of the composite drawing; the pair is mirrored around width / 2. */
+  width: number
+  /** Horizontal offset applied to the (right-side) model hand. */
+  dx: number
+  dy?: number
+}
+
+/**
+ * Place a model hand on the right of a composite drawing and mirror it to the
+ * left, giving the landmark sets of both hands in one coordinate space.
+ */
+export function composeTwoHands(
+  points: Point[],
+  layout: TwoHandLayout,
+): { left: Point[]; right: Point[] } {
+  const dy = layout.dy ?? 0
+  const right = points.map((p) => ({ x: p.x + layout.dx, y: p.y + dy }))
+  const left = right.map((p) => ({ x: layout.width - p.x, y: p.y }))
+  return { left, right }
 }
 
 /** Which finger a landmark index belongs to (null for the wrist). */

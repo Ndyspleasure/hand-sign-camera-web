@@ -18,6 +18,8 @@ const MODEL_URL =
  */
 export class HandTracker {
   private landmarker: HandLandmarker | null = null
+  /** Which MediaPipe delegate is running (set after initialize()). */
+  delegate: 'GPU' | 'CPU' | null = null
 
   async initialize(): Promise<void> {
     let vision: Awaited<ReturnType<typeof FilesetResolver.forVisionTasks>>
@@ -33,10 +35,12 @@ export class HandTracker {
     // Prefer the GPU delegate; fall back to CPU on devices without WebGL.
     try {
       this.landmarker = await this.create(vision, 'GPU')
+      this.delegate = 'GPU'
       return
     } catch (gpuErr) {
       try {
         this.landmarker = await this.create(vision, 'CPU')
+        this.delegate = 'CPU'
       } catch (cpuErr) {
         const detail = cpuErr instanceof Error ? cpuErr.message : String(cpuErr)
         const gpuDetail = gpuErr instanceof Error ? gpuErr.message : String(gpuErr)

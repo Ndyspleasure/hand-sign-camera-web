@@ -8,10 +8,39 @@ NODE_VERSION = "20"
 [functions]
 node_bundler = "esbuild"
 
+# The app moved from / to /camera/. Old deep links keep working.
 [[redirects]]
-from = "/*"
-to = "/index.html"
-status = 200
+from = "/"
+to = "/camera/?guide=:guide"
+status = 301
+force = true
+query = { guide = ":guide" }
+
+[[redirects]]
+from = "/"
+to = "/camera/?demo"
+status = 301
+force = true
+query = { demo = ":demo" }
+
+[[redirects]]
+from = "/"
+to = "/camera/?layout=:layout"
+status = 301
+force = true
+query = { layout = ":layout" }
+
+[[redirects]]
+from = "/index.html"
+to = "/"
+status = 301
+
+[[redirects]]
+from = "/camera/index.html"
+to = "/camera/"
+status = 301
+
+# No SPA catch-all: unknown URLs get a real 404 (dist/404.html).
 
 [[headers]]
 for = "/*"
@@ -19,13 +48,41 @@ for = "/*"
 X-Frame-Options = "DENY"
 X-Content-Type-Options = "nosniff"
 Referrer-Policy = "strict-origin-when-cross-origin"
+Permissions-Policy = "camera=(self), microphone=(), geolocation=()"
+Strict-Transport-Security = "max-age=31536000"
 
 [[headers]]
-for = "/index.html"
+for = "/*.html"
 [headers.values]
-Cache-Control = "max-age=0, must-revalidate"
+Cache-Control = "public, max-age=0, must-revalidate"
 
 [[headers]]
 for = "/assets/*"
 [headers.values]
-Cache-Control = "max-age=31536000, immutable"
+Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+for = "/mediapipe/*"
+[headers.values]
+# Not content-hashed: revalidate so the runtime always matches the bundled JS.
+Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+for = "/og/*"
+[headers.values]
+Cache-Control = "public, max-age=604800"
+
+[[headers]]
+for = "/icons/*"
+[headers.values]
+Cache-Control = "public, max-age=604800"
+
+[[headers]]
+for = "/sw.js"
+[headers.values]
+Cache-Control = "no-cache"
+
+[[headers]]
+for = "/llms.txt"
+[headers.values]
+Content-Type = "text/plain; charset=utf-8"

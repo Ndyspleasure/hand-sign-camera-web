@@ -1,194 +1,128 @@
 # Hand Sign Camera Vanillate — Web Version (PWA)
 
-**Fully offline-capable web app** — hand tracking, gesture recognition, and effects all run locally after one-time model download. No server calls after that. Works on any device with a modern browser (Chrome, Firefox, Safari, Edge).
+**Real-time hand-gesture camera in the browser.** MediaPipe tracks up to two hands, a rule-based recognizer reads 16 gestures (including a motion gesture and two-hand gestures), and every gesture triggers its own visual effect. Everything runs locally and works offline after the first load.
 
-## Local Setup
+## Features
+
+- **16 gestures**: 13 single-hand poses, Wave (motion), and two-hand Heart / Double Palm
+- **A distinct effect for every gesture** (table below)
+- **Two hands at once**: each hand gets its own gesture and effect; two-hand gestures take over both
+- **Gesture Guide** with animated 21-landmark SVG hands: 3–6 animation variants per gesture (forming, counting 1–10 on two hands, double-hand versions, fist bump, heart beat, high five, …), auto-cycling or pick one to loop, plus a live preview of each effect
+- **Interactive tutorial** that advances only when the camera actually detects each gesture
+- **Demo mode** (`?demo`, or the Demo button): synthetic hands, played from the same animation scripts, run through the real recognizer and effects, with no camera needed
+- **Desktop workspace** (≥1024 px with a mouse/trackpad): a full-screen, code-editor style layout. The editor types out the app's real source (shown without comments), `landmarks.live.json` streams live coordinates, the tracker panel shows a filterable log and a gesture reference, and a status bar shows hands/gesture/effect/FPS. Every control works: open files, pause typing, copy JSON, toggle panels (Settings), switch camera/demo, record.
+- **Recording** to WebM with a live timer
+- **Offline PWA**: WASM runtime and model are cached after first use
+
+## Gestures & effects
+
+| Gesture | How | Effect |
+|---|---|---|
+| Open Palm | all five fingers spread | Neon Skeleton |
+| Fist | all fingers curled | Shockwave |
+| Peace | index + middle up | Rainbow Trail |
+| Pointing | index up | Laser |
+| Thumbs Up | thumb up, fingers curled | Star Burst |
+| Thumbs Down | thumb down, fingers curled | Rain Cloud |
+| OK | thumb–index ring, others up | Halo |
+| Rock | index + pinky up, thumb tucked | Lightning |
+| Pinch | thumb & index tips together | Particle Spark |
+| Call Me | thumb + pinky out | Sound Waves |
+| 3️⃣ Three | index + middle + ring up | Tri-Beam |
+| 4️⃣ Four | four fingers up, thumb tucked | Code Rain |
+| I Love You | thumb + index + pinky out | Floating Hearts |
+| Wave | open palm swinging side to side | Ripple |
+| Heart (2 hands) | index tips touch on top, thumbs below | Big Heart |
+| Double Palm (2 hands) | both palms open | Energy Beam |
+
+## Site structure
+
+| URL | Page |
+|---|---|
+| `/` | Home: what the app does, how it works, all gestures, FAQ |
+| `/camera/` | The camera app (PWA start page) |
+| `/gestures/` | Gesture guide hub (one-hand, motion, two-hand, counting) |
+| `/gestures/<slug>/` | One page per gesture: how to make it, meaning, how it's recognized, effect, tips, variations |
+| `/privacy/` | On-device processing, what is downloaded and stored |
+
+App deep links: `/camera/?guide` opens the Gesture Guide (`?guide=HEART` selects a gesture); `?demo` starts demo mode; `?layout=ide` / `?layout=mobile` force a layout. Old links on `/` (`/?guide=…`, `/?demo`) redirect to `/camera/`.
+
+## SEO
+
+Content pages are rendered to static HTML at build time from the same gesture data the app uses (`src/seo/`), with zero client JavaScript and inlined CSS:
+
+- Unique title, meta description, H1 and heading outline per page; canonical URLs; Open Graph + Twitter cards with a 1200×630 image per page (`public/og/`)
+- JSON-LD: `WebSite`, `WebApplication`, `Organization`, `FAQPage` (home), `CollectionPage`/`ItemList` (hub), `HowTo` (gesture pages), `BreadcrumbList`
+- `sitemap.xml`, `robots.txt` (non-production Netlify builds disallow crawling), `llms.txt` for AI assistants, real 404s (no SPA catch-all)
+- Canonical origin comes from Netlify's `URL` (or `SITE_URL`); set a custom domain in Netlify and everything follows
+- `npm run build` runs `scripts/check-seo.mjs`, which fails the build on missing/duplicate titles or descriptions, broken internal links, bad canonicals, invalid JSON-LD, heading jumps or noindex pages in the sitemap
+- OG images and icons are regenerated with `npm run og:images` while `npm run dev` is running (needs Playwright)
+
+## Local setup
 
 ```bash
 npm install
-npm run dev
+npm run dev     # http://localhost:3000 (camera app at /camera/; localhost is a secure context, so the camera works over http)
+npm test        # unit tests (vitest)
+npm run build   # production build → dist/
 ```
-
-Open browser to `https://localhost:3000` (uses self-signed cert for local HTTPS — camera access requires HTTPS even on localhost).
 
 ## Architecture
 
-### `/src/shared/` — Gesture + Effect logic (platform-agnostic)
-Identical logic from native Kotlin project, ported to TypeScript:
-- `GeometricGestureRecognizer` — 9 gestures from finger-curl geometry
-- `EffectEngine` — maps gestures to effects with grace-period state
-- `NeonSkeletonEffect`, `LaserEffect`, `ParticleSparkEffect` — 3 effects
-- `HudRenderer` — live code readout
-- `DrawCommand` — platform-agnostic drawing instructions
+### `src/shared/` — platform-agnostic core
+- `GeometricGestureRecognizer` — finger-extension rules for single-hand gestures + `recognizeTwoHands` (Heart, Double Palm)
+- `WaveDetector` — the Wave motion gesture (direction reversals of the palm, normalized by hand size)
+- `GestureStabilizer` — debounces per-hand recognition so effects and labels don't flicker
+- `effectMap` — the single gesture → effect mapping used by the engine, UI and guide
+- `EffectEngine` + `effects/` — a tracking wireframe under every hand, then each hand's own effect; inactive effects keep decaying so particles fade out
+- `DrawCommand` — platform-agnostic drawing (line, circle, arc, path, text, additive blend)
 
-### `/src/camera/` — MediaPipe Web + getUserMedia
-- `HandTracker.ts` — MediaPipe Web integration (@mediapipe/tasks-vision)
-- Real-time hand landmark detection from camera stream
-- 21-point tracking per hand, supports 2 hands
+### `src/camera/` — MediaPipe + getUserMedia
+`HandTracker` wraps `@mediapipe/tasks-vision` HandLandmarker (2 hands, GPU with CPU fallback). The WASM runtime is copied from `node_modules` by `scripts/prepare-mediapipe.mjs` and served same-origin, so it always matches the bundled JS version.
 
-### `/src/compositor/` — Canvas rendering
-Maps `DrawCommand[]` from effects to native Canvas API calls. ~60 FPS capable.
+### `src/gestures/`, `src/hand-svg/` — guide data & visuals
+Registry of gesture metadata keyed by the recognizer's enum (the compiler rejects a gesture without an entry), canonical 21-landmark hand model, poses, and the pose-animation engine. Unit tests assert that **every guide pose is recognized as its own gesture**.
 
-### `/src/audio/` — Audio system
-Audio import, timeline, trim (MVP skeleton — production version needs mixing).
+### `src/ui/` — interface
+Status pill, control bar, Gesture Guide (+ live effect preview), tutorial, and `ide/` (desktop code-editor layout).
 
-### `/src/sw.ts` — Service Worker
-Offline support + aggressive caching. Pre-caches UI, caches MediaPipe WASM + model on first load.
-
-## What works now
-
-✅ Real camera access + hand tracking  
-✅ 9 gesture recognition  
-✅ 3 effects rendering live  
-✅ HUD with detected gesture names  
-✅ Video recording to WebM  
-✅ Service worker + offline after first load  
-✅ Build optimization (Vite + terser)  
-
-## Performance
-
-- **Hand tracking latency:** ~50-100ms (WASM), vs ~25-30ms on native. Acceptable for real-time.
-- **Rendering:** 60 FPS capable on modern devices (Canvas is fast).
-- **Download:** ~30MB first load (MediaPipe WASM + model), then cached forever.
-- **Subsequent loads:** <1 second (everything cached).
-
-## Building for Production
-
-```bash
-npm run build
-# Outputs optimized dist/ directory
-```
-
-Output is ready for static hosting (Netlify, Vercel, GitHub Pages, etc).
-
----
+### `src/compositor/` — Canvas rendering
+Maps `DrawCommand[]` to Canvas 2D with minimal state changes.
 
 ## Deployment to Netlify
 
-### Option 1: Connect GitHub (Recommended)
+The repo is connected to Netlify: every push to `main` deploys automatically, and pull requests get deploy previews. `netlify.toml` sets `npm run build` → `dist` on Node 20. For a manual deploy, run `npm run build` and drag `dist/` to https://app.netlify.com/drop.
 
-1. **Push code to GitHub:**
-   ```bash
-   git init
-   git add .
-   git commit -m "Initial commit: Hand Sign Camera Vanillate web"
-   git remote add origin https://github.com/YOUR_USERNAME/hand-sign-camera-web.git
-   git push -u origin main
-   ```
+Netlify serves HTTPS by default, which the camera requires (except on localhost).
 
-2. **Log in to Netlify** at https://app.netlify.com
+## Model download & caching
 
-3. **Click "Add new site" → "Import an existing project"**
+On first load the browser downloads the MediaPipe WASM runtime (same origin) and the `hand_landmarker.task` model (Google's model CDN). The service worker caches both, so later visits start instantly and work offline.
 
-4. **Connect your GitHub account** and select the repository
+## Offline behavior
 
-5. **Configure build settings:**
-   - **Build command:** `npm run build`
-   - **Publish directory:** `dist`
-   - **Node version:** 18 (or higher)
+After the first load, camera, hand tracking, gesture recognition, effects and recording all work without a network.
 
-6. **Click "Deploy"** — Netlify will build and deploy automatically
+## Browser support
 
-### Option 2: Direct Upload (No GitHub)
-
-1. Build locally:
-   ```bash
-   npm run build
-   ```
-
-2. Go to https://app.netlify.com/drop
-
-3. Drag & drop the `dist` folder
-
-4. Your site is live in ~30 seconds
-
-### Option 3: Netlify CLI (Fastest for Testing)
-
-```bash
-npm install -g netlify-cli
-npm run build
-netlify deploy --prod --dir=dist
-```
-
-Follow the prompts — login to Netlify and link to your site.
-
----
-
-## HTTPS & Camera Access
-
-✅ **Netlify deployments are HTTPS by default** — no extra setup needed.
-
-Camera access requires HTTPS (even localhost needs HTTPS for `getUserMedia`). Netlify handles this automatically.
-
----
-
-## Model Download & Caching
-
-On first load:
-1. Browser downloads MediaPipe WASM (~20MB)
-2. Browser downloads `hand_landmarker.task` model (~20MB)
-3. **Service Worker caches both** — subsequent visits use cache
-
-If user clears cache, the download repeats (but only on next visit, not affecting app experience).
-
-**Total first-load time:** ~10-30 seconds (depends on network speed).
-
----
-
-## Environment Variables
-
-Currently none required. See `.env.example` for future use.
-
----
-
-## Offline Behavior
-
-✅ **Works fully offline after first load:**
-- Camera: works (local API)
-- Hand tracking: works (cached WASM + model)
-- Gesture recognition: works (local logic)
-- Effects: work (local Canvas rendering)
-- Recording: works (browser's MediaRecorder)
-
-Network is NOT required after the first load completes.
-
----
-
-## Browser Support
-
-| Browser | Dukungan | Catatan |
-|---------|----------|---------|
-| Chrome 96+ | ✅ Penuh | Recommended |
-| Firefox 120+ | ✅ Penuh | Works great |
-| Safari 16+ | ✅ Penuh | iOS 16+ dibutuhkan untuk camera |
-| Edge 96+ | ✅ Penuh | Chromium-based |
-| Chrome Mobile | ✅ Penuh | Android 8+ |
-| Safari iOS | ✅ Penuh | iOS 16+ dibutuhkan |
-
----
+| Browser | Support | Notes |
+|---------|---------|-------|
+| Chrome 96+ | ✅ | Recommended |
+| Firefox 120+ | ✅ | |
+| Safari 16+ | ✅ | iOS 16+ for camera |
+| Edge 96+ | ✅ | Chromium-based |
+| Chrome Mobile | ✅ | Android 8+ |
 
 ## Troubleshooting
 
-**Camera tidak bekerja?**
-- Browser harus punya camera permission
-- Harus HTTPS (Netlify handles ini)
-- Coba browser yang berbeda
+**Camera not working?** Allow camera permission and use HTTPS (or localhost).
 
-**Hand tracking lambat?**
-- First load cache WASM — instant after
-- Close other browser tabs untuk free memory
-- Check internet speed saat first load
+**A gesture isn't detected?** Open the Guide to compare with the demo; keep the whole hand in frame. Rock needs the thumb tucked (thumb out = I Love You); Four needs the thumb folded (thumb out = Open Palm).
 
-**Recording tidak download?**
-- Browser's pop-up blocker mungkin block download
-- Check browser settings
+**Recording doesn't download?** A pop-up/download blocker may be interfering.
 
----
+## Future improvements
 
-## Future Improvements
-
-- Audio mixing (currently silent blob)
-- More effects (Blur, Glitch, Particle variants)
-- Project storage (IndexedDB)
-- Gesture combinations (BOTH_HANDS)
-- Motion gestures (WAVE, dll)
+- Audio mixing in recordings
+- Custom gesture recording
+- More two-hand gestures (e.g. camera frame)
