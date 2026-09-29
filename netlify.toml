@@ -8,6 +8,27 @@ NODE_VERSION = "20"
 [functions]
 node_bundler = "esbuild"
 
+# The old Netlify address redirects to the custom domain. Its /sw.js is swapped
+# for a worker that clears the old cached app, so returning visitors whose
+# service worker would otherwise keep serving it also reach the redirect.
+[[redirects]]
+from = "https://vanillate-hand-sign-camera.netlify.app/sw.js"
+to = "/retire-sw.js"
+status = 200
+force = true
+
+[[redirects]]
+from = "https://vanillate-hand-sign-camera.netlify.app/*"
+to = "https://handsign.vanillate.id/:splat"
+status = 301
+force = true
+
+[[redirects]]
+from = "http://vanillate-hand-sign-camera.netlify.app/*"
+to = "https://handsign.vanillate.id/:splat"
+status = 301
+force = true
+
 # The app moved from / to /camera/. Old deep links keep working.
 [[redirects]]
 from = "/"

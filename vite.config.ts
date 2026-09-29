@@ -18,7 +18,7 @@ export default defineConfig({
         navigateFallback: '/camera/index.html',
         navigateFallbackAllowlist: [/^\/camera\//],
         globPatterns: ['**/*.{js,css,html,svg,ico,png,webmanifest}'],
-        globIgnores: ['og/**', 'mediapipe/**', 'icons/icon-512.png', 'icons/icon-maskable-512.png'],
+        globIgnores: ['og/**', 'mediapipe/**', 'icons/icon-512.png', 'icons/icon-maskable-512.png', 'retire-sw.js'],
         // Cache everything, forever (app manages cache manually for model updates)
         // The 11 MB WASM binaries exceed the default precache size limit, so
         // they are cached at runtime on first use instead of being precached.
