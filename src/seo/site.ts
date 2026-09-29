@@ -12,8 +12,8 @@ export const SITE = {
   locale: 'en_US',
   lang: 'en',
   themeColor: '#071014',
-  /** Used when the build has no URL (Netlify sets `URL` to the production address). */
-  defaultOrigin: 'https://vanillate-hand-sign-camera.netlify.app',
+  /** Production origin. Builds override it with SITE_URL, else Netlify's URL. */
+  defaultOrigin: 'https://handsign.vanillate.id',
 } as const
 
 export interface SiteOptions {
