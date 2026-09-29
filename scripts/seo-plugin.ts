@@ -2,7 +2,7 @@ import type { Plugin, ViteDevServer } from 'vite'
 
 /** Production origin for canonical URLs, sitemap and Open Graph tags. */
 export function siteOptions() {
-  const raw = process.env.SITE_URL || process.env.URL || 'https://vanillate-hand-sign-camera.netlify.app'
+  const raw = process.env.SITE_URL || process.env.URL || 'https://handsign.vanillate.id'
   const origin = raw.replace(/^http:\/\//, 'https://').replace(/\/+$/, '')
   // Netlify sets CONTEXT; local builds count as production so `vite preview` mirrors the live site.
   const production = (process.env.CONTEXT ?? 'production') === 'production'

@@ -54,7 +54,7 @@ Content pages are rendered to static HTML at build time from the same gesture da
 - Unique title, meta description, H1 and heading outline per page; canonical URLs; Open Graph + Twitter cards with a 1200×630 image per page (`public/og/`)
 - JSON-LD: `WebSite`, `WebApplication`, `Organization`, `FAQPage` (home), `CollectionPage`/`ItemList` (hub), `HowTo` (gesture pages), `BreadcrumbList`
 - `sitemap.xml`, `robots.txt` (non-production Netlify builds disallow crawling), `llms.txt` for AI assistants, real 404s (no SPA catch-all)
-- Canonical origin comes from Netlify's `URL` (or `SITE_URL`); set a custom domain in Netlify and everything follows
+- Canonical origin: `SITE_URL` (set to https://handsign.vanillate.id in Netlify), else Netlify's `URL`
 - `npm run build` runs `scripts/check-seo.mjs`, which fails the build on missing/duplicate titles or descriptions, broken internal links, bad canonicals, invalid JSON-LD, heading jumps or noindex pages in the sitemap
 - OG images and icons are regenerated with `npm run og:images` while `npm run dev` is running (needs Playwright)
 
